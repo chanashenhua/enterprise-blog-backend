@@ -1,0 +1,11 @@
+COMMENT ON TABLE review_ticket IS '文章发布审核工作项';
+COMMENT ON COLUMN review_ticket.id IS '审核单唯一标识';
+COMMENT ON COLUMN review_ticket.article_id IS '待审核文章标识';
+COMMENT ON COLUMN review_ticket.review_request_id IS '一次发布提交的审核请求标识，用于回调幂等控制';
+COMMENT ON COLUMN review_ticket.author_id IS '提交审核的文章作者标识';
+COMMENT ON COLUMN review_ticket.visibility_type IS '申请发布的可见范围类型';
+COMMENT ON COLUMN review_ticket.target_org_ids IS '目标部门或团队标识集合，逗号分隔保存';
+COMMENT ON COLUMN review_ticket.status IS '审核状态，如 PENDING、APPROVING、APPROVED、REJECTING、REJECTED';
+COMMENT ON COLUMN review_ticket.decision_comment IS '审核拒绝时填写的意见';
+COMMENT ON COLUMN review_ticket.created_at IS '审核单创建时间';
+COMMENT ON COLUMN review_ticket.updated_at IS '审核单状态最后更新时间';
