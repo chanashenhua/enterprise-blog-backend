@@ -1,0 +1,42 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: article-service
+  datasource:
+    url: jdbc:postgresql://postgres:5432/article_db
+    username: ${POSTGRES_USER:blog}
+    password: ${POSTGRES_PASSWORD:blog}
+  flyway:
+    enabled: true
+
+blog:
+  services:
+    permission-service-url: http://permission-service:8083
+    tag-service-url: http://tag-service:8085
+    review-service-url: http://review-service:8086
+    search-service-url: http://search-service:8088
+  internal:
+    review-token: ${INTERNAL_REVIEW_TOKEN:local-review-token}
+    search-token: ${INTERNAL_SEARCH_TOKEN:local-search-token}
+  outbox:
+    search:
+      batch-size: 20
+      max-retries: 5
+      fixed-delay-ms: 5000
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true

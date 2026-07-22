@@ -1,0 +1,2 @@
+ALTER TABLE file_metadata
+    ADD COLUMN upload_verified BOOLEAN NOT NULL DEFAULT FALSE;

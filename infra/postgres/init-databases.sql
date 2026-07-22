@@ -1,0 +1,8 @@
+CREATE DATABASE user_db;
+CREATE DATABASE org_db;
+CREATE DATABASE permission_db;
+CREATE DATABASE article_db;
+CREATE DATABASE tag_db;
+CREATE DATABASE review_db;
+CREATE DATABASE file_db;
+CREATE DATABASE search_db;

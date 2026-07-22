@@ -1,0 +1,407 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: enterprise-blog-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-blog}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blog}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-blog} -d $${POSTGRES_DB:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    container_name: enterprise-blog-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:RELEASE.2024-10-13T13-34-11Z
+    container_name: enterprise-blog-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      MINIO_API_CORS_ALLOW_ORIGIN: ${MINIO_CORS_ALLOW_ORIGIN:-http://localhost:5173}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  minio-init:
+    image: minio/mc:RELEASE.2024-10-29T15-34-59Z
+    container_name: enterprise-blog-minio-init
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
+      MINIO_FILE_SERVICE_ACCESS_KEY: ${MINIO_FILE_SERVICE_ACCESS_KEY:?MINIO_FILE_SERVICE_ACCESS_KEY must be set}
+      MINIO_FILE_SERVICE_SECRET_KEY: ${MINIO_FILE_SERVICE_SECRET_KEY:?MINIO_FILE_SERVICE_SECRET_KEY must be set}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb --ignore-existing --region "$$MINIO_REGION" local/blog-files
+        mc anonymous set private local/blog-files
+        mc version enable local/blog-files
+        cat > /tmp/file-service-policy.json <<'EOF'
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject"],
+              "Resource": ["arn:aws:s3:::blog-files/*"]
+            }
+          ]
+        }
+        EOF
+        if ! mc admin user info local "$$MINIO_FILE_SERVICE_ACCESS_KEY" >/dev/null 2>&1; then
+          mc admin user add local "$$MINIO_FILE_SERVICE_ACCESS_KEY" "$$MINIO_FILE_SERVICE_SECRET_KEY"
+        fi
+        if ! mc admin policy info local file-service-policy >/dev/null 2>&1; then
+          mc admin policy create local file-service-policy /tmp/file-service-policy.json
+        fi
+        mc admin policy attach local file-service-policy --user "$$MINIO_FILE_SERVICE_ACCESS_KEY"
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: enterprise-blog-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  elasticsearch-init:
+    image: curlimages/curl:8.10.1
+    container_name: enterprise-blog-elasticsearch-init
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        curl -fsS -X PUT http://elasticsearch:9200/articles-v1 \
+          -H 'Content-Type: application/json' \
+          --data-binary @/infra/article-index.json || \
+          curl -fsS http://elasticsearch:9200/articles-v1/_mapping
+    volumes:
+      - ./infra/elasticsearch:/infra:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  eureka-server:
+    image: maven:3.9.9-eclipse-temurin-21
+    container_name: enterprise-blog-eureka-server
+    working_dir: /workspace
+    command: bash -lc "bash ./mvnw -pl backend/eureka-server spring-boot:run"
+    restart: unless-stopped
+    environment:
+      SPRING_APPLICATION_NAME: eureka-server
+      SERVER_PORT: "8761"
+      EUREKA_CLIENT_REGISTER_WITH_EUREKA: "false"
+      EUREKA_CLIENT_FETCH_REGISTRY: "false"
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info
+    ports:
+      - "8761:8761"
+    volumes:
+      - ./:/workspace
+      - maven-repo:/root/.m2
+    healthcheck:
+      test: ["CMD-SHELL", "bash -ec '</dev/tcp/localhost/8761'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  config-server:
+    image: maven:3.9.9-eclipse-temurin-21
+    container_name: enterprise-blog-config-server
+    working_dir: /workspace
+    command: bash -lc "bash ./mvnw -pl backend/config-server spring-boot:run"
+    restart: unless-stopped
+    environment:
+      SPRING_APPLICATION_NAME: config-server
+      SPRING_PROFILES_ACTIVE: native
+      SERVER_PORT: "8888"
+      SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS: file:/workspace/config-repo
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./:/workspace
+      - maven-repo:/root/.m2
+    healthcheck:
+      test: ["CMD-SHELL", "bash -ec '</dev/tcp/localhost/8888'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  gateway-service:
+    image: maven:3.9.9-eclipse-temurin-21
+    container_name: enterprise-blog-gateway-service
+    working_dir: /workspace
+    command: bash -lc "bash ./mvnw -pl backend/gateway-service spring-boot:run"
+    restart: unless-stopped
+    environment:
+      SPRING_APPLICATION_NAME: gateway-service
+      SPRING_PROFILES_ACTIVE: dev
+      SERVER_PORT: "8080"
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      GATEWAY_DEV_MOCK_TOKEN: ${GATEWAY_DEV_MOCK_TOKEN:?GATEWAY_DEV_MOCK_TOKEN must be set}
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./:/workspace
+      - maven-repo:/root/.m2
+
+  file-service:
+    image: maven:3.9.9-eclipse-temurin-21
+    container_name: enterprise-blog-file-service
+    working_dir: /workspace
+    command: bash -lc "bash ./mvnw -pl backend/file-service spring-boot:run"
+    restart: unless-stopped
+    environment:
+      SPRING_APPLICATION_NAME: file-service
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      MINIO_FILE_SERVICE_ACCESS_KEY: ${MINIO_FILE_SERVICE_ACCESS_KEY:?MINIO_FILE_SERVICE_ACCESS_KEY must be set}
+      MINIO_FILE_SERVICE_SECRET_KEY: ${MINIO_FILE_SERVICE_SECRET_KEY:?MINIO_FILE_SERVICE_SECRET_KEY must be set}
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:9000}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      INTERNAL_FILE_TOKEN: ${INTERNAL_FILE_TOKEN:?INTERNAL_FILE_TOKEN must be set}
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./:/workspace
+      - maven-repo:/root/.m2
+
+  search-service:
+    image: maven:3.9.9-eclipse-temurin-21
+    container_name: enterprise-blog-search-service
+    working_dir: /workspace
+    command: bash -lc "bash ./mvnw -pl backend/search-service -am spring-boot:run"
+    restart: unless-stopped
+    environment:
+      SPRING_APPLICATION_NAME: search-service
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      INTERNAL_SEARCH_TOKEN: ${INTERNAL_SEARCH_TOKEN:?INTERNAL_SEARCH_TOKEN must be set}
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      elasticsearch-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./:/workspace
+      - maven-repo:/root/.m2
+
+  user-service:
+    image: maven:3.9.9-eclipse-temurin-21
+    container_name: enterprise-blog-user-service
+    working_dir: /workspace
+    command: bash -lc "bash ./mvnw -pl backend/user-service spring-boot:run"
+    restart: unless-stopped
+    environment:
+      SPRING_APPLICATION_NAME: user-service
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      POSTGRES_USER: ${POSTGRES_USER:-blog}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blog}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    volumes:
+      - ./:/workspace
+      - maven-repo:/root/.m2
+
+  org-service:
+    image: maven:3.9.9-eclipse-temurin-21
+    container_name: enterprise-blog-org-service
+    working_dir: /workspace
+    command: bash -lc "bash ./mvnw -pl backend/org-service spring-boot:run"
+    restart: unless-stopped
+    environment:
+      SPRING_APPLICATION_NAME: org-service
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      POSTGRES_USER: ${POSTGRES_USER:-blog}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blog}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    volumes:
+      - ./:/workspace
+      - maven-repo:/root/.m2
+
+  permission-service:
+    image: maven:3.9.9-eclipse-temurin-21
+    container_name: enterprise-blog-permission-service
+    working_dir: /workspace
+    command: bash -lc "bash ./mvnw -pl backend/permission-service spring-boot:run"
+    restart: unless-stopped
+    environment:
+      SPRING_APPLICATION_NAME: permission-service
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      config-server:
+        condition: service_healthy
+    volumes:
+      - ./:/workspace
+      - maven-repo:/root/.m2
+
+  tag-service:
+    image: maven:3.9.9-eclipse-temurin-21
+    container_name: enterprise-blog-tag-service
+    working_dir: /workspace
+    command: bash -lc "bash ./mvnw -pl backend/tag-service spring-boot:run"
+    restart: unless-stopped
+    environment:
+      SPRING_APPLICATION_NAME: tag-service
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      POSTGRES_USER: ${POSTGRES_USER:-blog}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blog}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    volumes:
+      - ./:/workspace
+      - maven-repo:/root/.m2
+
+  review-service:
+    image: maven:3.9.9-eclipse-temurin-21
+    container_name: enterprise-blog-review-service
+    working_dir: /workspace
+    command: bash -lc "bash ./mvnw -pl backend/review-service spring-boot:run"
+    restart: unless-stopped
+    environment:
+      SPRING_APPLICATION_NAME: review-service
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      POSTGRES_USER: ${POSTGRES_USER:-blog}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blog}
+      INTERNAL_REVIEW_TOKEN: ${INTERNAL_REVIEW_TOKEN:?INTERNAL_REVIEW_TOKEN must be set}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      permission-service:
+        condition: service_started
+    volumes:
+      - ./:/workspace
+      - maven-repo:/root/.m2
+
+  article-service:
+    image: maven:3.9.9-eclipse-temurin-21
+    container_name: enterprise-blog-article-service
+    working_dir: /workspace
+    command: bash -lc "bash ./mvnw -pl backend/article-service spring-boot:run"
+    restart: unless-stopped
+    environment:
+      SPRING_APPLICATION_NAME: article-service
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      SPRING_CLOUD_CONFIG_FAIL_FAST: "true"
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      POSTGRES_USER: ${POSTGRES_USER:-blog}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blog}
+      INTERNAL_REVIEW_TOKEN: ${INTERNAL_REVIEW_TOKEN:?INTERNAL_REVIEW_TOKEN must be set}
+      INTERNAL_SEARCH_TOKEN: ${INTERNAL_SEARCH_TOKEN:?INTERNAL_SEARCH_TOKEN must be set}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      permission-service:
+        condition: service_started
+      tag-service:
+        condition: service_started
+      review-service:
+        condition: service_started
+      search-service:
+        condition: service_started
+    volumes:
+      - ./:/workspace
+      - maven-repo:/root/.m2
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+  elasticsearch-data:
+  maven-repo:

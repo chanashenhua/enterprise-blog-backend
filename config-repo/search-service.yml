@@ -1,0 +1,29 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: search-service
+
+blog:
+  elasticsearch:
+    base-url: http://elasticsearch:9200
+  services:
+    permission-service-url: http://permission-service:8083
+  internal:
+    search-token: ${INTERNAL_SEARCH_TOKEN:local-search-token}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
