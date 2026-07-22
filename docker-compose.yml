@@ -132,7 +132,7 @@ services:
     image: maven:3.9.9-eclipse-temurin-21
     container_name: enterprise-blog-eureka-server
     working_dir: /workspace
-    command: bash -lc "bash ./mvnw -pl backend/eureka-server spring-boot:run"
+    command: bash -lc "bash ./mvnw -pl eureka-server spring-boot:run"
     restart: unless-stopped
     environment:
       SPRING_APPLICATION_NAME: eureka-server
@@ -156,7 +156,7 @@ services:
     image: maven:3.9.9-eclipse-temurin-21
     container_name: enterprise-blog-config-server
     working_dir: /workspace
-    command: bash -lc "bash ./mvnw -pl backend/config-server spring-boot:run"
+    command: bash -lc "bash ./mvnw -pl config-server spring-boot:run"
     restart: unless-stopped
     environment:
       SPRING_APPLICATION_NAME: config-server
@@ -184,7 +184,7 @@ services:
     image: maven:3.9.9-eclipse-temurin-21
     container_name: enterprise-blog-gateway-service
     working_dir: /workspace
-    command: bash -lc "bash ./mvnw -pl backend/gateway-service spring-boot:run"
+    command: bash -lc "bash ./mvnw -pl gateway-service spring-boot:run"
     restart: unless-stopped
     environment:
       SPRING_APPLICATION_NAME: gateway-service
@@ -210,7 +210,7 @@ services:
     image: maven:3.9.9-eclipse-temurin-21
     container_name: enterprise-blog-file-service
     working_dir: /workspace
-    command: bash -lc "bash ./mvnw -pl backend/file-service spring-boot:run"
+    command: bash -lc "bash ./mvnw -pl file-service spring-boot:run"
     restart: unless-stopped
     environment:
       SPRING_APPLICATION_NAME: file-service
@@ -238,7 +238,7 @@ services:
     image: maven:3.9.9-eclipse-temurin-21
     container_name: enterprise-blog-search-service
     working_dir: /workspace
-    command: bash -lc "bash ./mvnw -pl backend/search-service -am spring-boot:run"
+    command: bash -lc "bash ./mvnw -pl search-service -am spring-boot:run"
     restart: unless-stopped
     environment:
       SPRING_APPLICATION_NAME: search-service
@@ -262,7 +262,7 @@ services:
     image: maven:3.9.9-eclipse-temurin-21
     container_name: enterprise-blog-user-service
     working_dir: /workspace
-    command: bash -lc "bash ./mvnw -pl backend/user-service spring-boot:run"
+    command: bash -lc "bash ./mvnw -pl user-service spring-boot:run"
     restart: unless-stopped
     environment:
       SPRING_APPLICATION_NAME: user-service
@@ -284,7 +284,7 @@ services:
     image: maven:3.9.9-eclipse-temurin-21
     container_name: enterprise-blog-org-service
     working_dir: /workspace
-    command: bash -lc "bash ./mvnw -pl backend/org-service spring-boot:run"
+    command: bash -lc "bash ./mvnw -pl org-service spring-boot:run"
     restart: unless-stopped
     environment:
       SPRING_APPLICATION_NAME: org-service
@@ -306,7 +306,7 @@ services:
     image: maven:3.9.9-eclipse-temurin-21
     container_name: enterprise-blog-permission-service
     working_dir: /workspace
-    command: bash -lc "bash ./mvnw -pl backend/permission-service spring-boot:run"
+    command: bash -lc "bash ./mvnw -pl permission-service spring-boot:run"
     restart: unless-stopped
     environment:
       SPRING_APPLICATION_NAME: permission-service
@@ -324,7 +324,7 @@ services:
     image: maven:3.9.9-eclipse-temurin-21
     container_name: enterprise-blog-tag-service
     working_dir: /workspace
-    command: bash -lc "bash ./mvnw -pl backend/tag-service spring-boot:run"
+    command: bash -lc "bash ./mvnw -pl tag-service spring-boot:run"
     restart: unless-stopped
     environment:
       SPRING_APPLICATION_NAME: tag-service
@@ -346,7 +346,7 @@ services:
     image: maven:3.9.9-eclipse-temurin-21
     container_name: enterprise-blog-review-service
     working_dir: /workspace
-    command: bash -lc "bash ./mvnw -pl backend/review-service spring-boot:run"
+    command: bash -lc "bash ./mvnw -pl review-service spring-boot:run"
     restart: unless-stopped
     environment:
       SPRING_APPLICATION_NAME: review-service
@@ -371,7 +371,7 @@ services:
     image: maven:3.9.9-eclipse-temurin-21
     container_name: enterprise-blog-article-service
     working_dir: /workspace
-    command: bash -lc "bash ./mvnw -pl backend/article-service spring-boot:run"
+    command: bash -lc "bash ./mvnw -pl article-service spring-boot:run"
     restart: unless-stopped
     environment:
       SPRING_APPLICATION_NAME: article-service

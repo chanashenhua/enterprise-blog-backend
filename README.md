@@ -12,6 +12,8 @@ docker compose up -d
 
 Gateway 地址为 `http://localhost:8080`。员工端和管理端位于相邻的 `enterprise-blog-frontend` 仓库，通过 Gateway 的 `/api/**` 访问本仓库服务。
 
+`docs/superpowers` 中的设计与实施计划保留了拆分前的目录结构，仅作为历史决策记录；当前服务目录已直接位于仓库根目录。
+
 ## 验证
 
 ```powershell

@@ -8,18 +8,18 @@
   <packaging>pom</packaging>
 
   <modules>
-    <module>backend/common</module>
-    <module>backend/eureka-server</module>
-    <module>backend/config-server</module>
-    <module>backend/gateway-service</module>
-    <module>backend/user-service</module>
-    <module>backend/org-service</module>
-    <module>backend/permission-service</module>
-    <module>backend/article-service</module>
-    <module>backend/tag-service</module>
-    <module>backend/review-service</module>
-    <module>backend/file-service</module>
-    <module>backend/search-service</module>
+    <module>common</module>
+    <module>eureka-server</module>
+    <module>config-server</module>
+    <module>gateway-service</module>
+    <module>user-service</module>
+    <module>org-service</module>
+    <module>permission-service</module>
+    <module>article-service</module>
+    <module>tag-service</module>
+    <module>review-service</module>
+    <module>file-service</module>
+    <module>search-service</module>
   </modules>
 
   <properties>
