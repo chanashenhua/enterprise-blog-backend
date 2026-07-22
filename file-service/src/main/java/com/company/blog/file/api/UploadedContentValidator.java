@@ -13,6 +13,11 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.springframework.stereotype.Component;
 
 @Component
+/**
+ * 校验上传字节是否真的是声明的文件格式。
+ *
+ * <p>图片会尝试解码并限制像素数，PDF 会由 PDFBox 解析，降低伪装文件和解压/图片炸弹的风险。</p>
+ */
 public class UploadedContentValidator {
     private static final long MAX_IMAGE_PIXELS = 40_000_000L;
 
@@ -45,6 +50,7 @@ public class UploadedContentValidator {
                     if (!expectedFormat.equals(reader.getFormatName().toLowerCase(Locale.ROOT))) {
                         return false;
                     }
+                    // 像素上限限制图像解码时的内存占用。
                     long pixels = (long) reader.getWidth(0) * reader.getHeight(0);
                     if (pixels <= 0 || pixels > MAX_IMAGE_PIXELS) {
                         return false;

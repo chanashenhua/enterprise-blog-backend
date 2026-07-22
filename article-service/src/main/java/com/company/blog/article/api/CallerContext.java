@@ -5,6 +5,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpHeaders;
 
+/**
+ * 网关注入到下游服务的调用者身份快照。
+ *
+ * <p>文章服务将它原样传给权限服务，而不是在本服务复制一套角色和组织授权规则。</p>
+ */
 public record CallerContext(String userId, Set<String> roles, Set<String> departmentIds, Set<String> teamIds) {
     public CallerContext {
         roles = roles == null ? Set.of() : Set.copyOf(roles);

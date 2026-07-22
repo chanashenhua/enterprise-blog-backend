@@ -10,6 +10,12 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 @Component
+/**
+ * 清除客户端自行携带的可信身份头。
+ *
+ * <p>下游服务只信任网关在认证后注入的 {@code X-User-*} 头；本过滤器先运行，确保外部请求
+ * 不能伪造用户、角色或组织范围。</p>
+ */
 public class TrustedUserContextHeaderFilter implements GlobalFilter, Ordered {
     static final String USER_ID_HEADER = "X-User-Id";
     static final String USER_ROLES_HEADER = "X-User-Roles";

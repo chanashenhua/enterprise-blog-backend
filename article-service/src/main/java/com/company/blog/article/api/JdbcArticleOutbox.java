@@ -10,6 +10,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
+/**
+ * 将文章领域事件持久化到 PostgreSQL Outbox 表。
+ *
+ * <p>发布文章时先写本地事件记录，再由调度器投递给搜索服务。这样即使远程调用暂时失败，
+ * 发布操作也不会丢失需要建立的搜索索引。</p>
+ */
 public class JdbcArticleOutbox implements ArticleOutbox {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -48,6 +54,7 @@ public class JdbcArticleOutbox implements ArticleOutbox {
 
     private static String payloadJson(DomainEvent event, ArticleMemoryRepository.StoredArticle storedArticle) {
         try {
+            // 发布事件携带完整索引快照，调度器无需回查仍是内存实现的文章服务。
             if (storedArticle == null || !"ArticlePublished".equals(event.type())) {
                 return OBJECT_MAPPER.writeValueAsString(Map.of(
                         "articleId", event.aggregateId(),

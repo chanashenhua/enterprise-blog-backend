@@ -14,6 +14,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+/**
+ * 文件访问的应用服务。
+ *
+ * <p>上传 URL 只表示“允许尝试上传”，不表示文件可信。首次下载或业务绑定时必须调用对象存储
+ * 校验器，比对大小、类型、版本和实际内容后，才把文件视为可用。</p>
+ */
 public class FileService {
     private final FileValidation validation;
     private final FileMetadataRepository metadataRepository;
@@ -43,6 +49,7 @@ public class FileService {
         if (request == null) {
             throw new IllegalArgumentException("request is required");
         }
+        // 先按声明的文件名、类型和大小拦截明显不合规的上传请求。
         FileValidationResult validationResult = validation.validate(
                 request.originalName(),
                 request.contentType(),
@@ -80,6 +87,7 @@ public class FileService {
         if (!metadata.ownerId().equals(requesterId)) {
             throw new FileAccessDeniedException(fileId);
         }
+        // 不为未经验证的对象签发下载地址，防止客户端声明图片却上传任意字节内容。
         FileMetadata verifiedMetadata = ensureUploadVerified(metadata);
         Instant issuedAt = clock.instant();
         return new CreateDownloadUrlResponse(
@@ -90,6 +98,9 @@ public class FileService {
     }
 
     @Transactional
+    /**
+     * 将文件绑定到文章等资源。绑定前再次确认所有权和对象内容，避免“先传后换”或越权引用。
+     */
     public BindFilesResponse bind(BindFilesRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("request is required");
@@ -122,6 +133,7 @@ public class FileService {
         if (metadata.uploadVerified()) {
             return metadata;
         }
+        // 保存对象版本号，后续下载 URL 精确指向已验证版本，而不是可能被覆盖的新版本。
         VerifiedObject verifiedObject = objectStorageVerifier.verify(
                 metadata.objectKey(),
                 metadata.contentType(),

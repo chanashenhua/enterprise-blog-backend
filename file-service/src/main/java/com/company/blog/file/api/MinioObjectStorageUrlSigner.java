@@ -15,6 +15,12 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 @Component
+/**
+ * 为 MinIO 生成短时预签名请求。
+ *
+ * <p>上传使用 POST Policy 同时约束对象键、Content-Type 和精确大小；下载带已验证对象版本号，
+ * 从而避免 URL 指向之后被覆盖的内容。</p>
+ */
 public class MinioObjectStorageUrlSigner implements ObjectStorageUrlSigner {
     private final MinioClient minioClient;
     private final String bucket;
@@ -42,6 +48,7 @@ public class MinioObjectStorageUrlSigner implements ObjectStorageUrlSigner {
             throw new IllegalArgumentException("sizeBytes must be positive");
         }
         try {
+            // Policy 由 MinIO 验证，客户端无法把这次凭证改用于别的对象键或大小。
             PostPolicy policy = new PostPolicy(
                     bucket,
                     ZonedDateTime.now(ZoneOffset.UTC).plusSeconds(expirySeconds)

@@ -8,6 +8,12 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * 文章聚合根，封装从草稿到发布或审核退回的状态机。
+ *
+ * <p>外层服务不能直接修改状态：可见范围、审核请求 ID 和领域事件必须随状态转换一起维护，
+ * 才能阻止过期审核回调错误地影响后续提交。</p>
+ */
 public final class Article {
     private final String id;
     private final String authorId;
@@ -77,6 +83,7 @@ public final class Article {
 
     public void requestReview(ArticleVisibilityType visibilityType, Set<String> targetOrgIds) {
         Set<String> requestedTargets = Set.copyOf(targetOrgIds == null ? Set.of() : new HashSet<>(targetOrgIds));
+        // 同一份待审内容可安全重试；若试图改变范围，必须先回到草稿后重新提交。
         if (status == ArticleStatus.PENDING_REVIEW) {
             if (this.visibilityType == visibilityType && this.visibilityTargetIds.equals(requestedTargets)) {
                 return;
@@ -91,6 +98,7 @@ public final class Article {
 
     public boolean approveFromReview(String reviewTicketId, String callbackReviewRequestId) {
         String approvedTicketId = requireText(reviewTicketId, "reviewTicketId");
+        // 审核请求 ID 是回调幂等键，也隔离了旧审核单的迟到消息。
         if (!isCurrentReviewRequest(callbackReviewRequestId)) {
             return false;
         }
@@ -131,6 +139,10 @@ public final class Article {
     }
 
     public List<DomainEvent> pullEvents() {
+        /**
+         * 取走本次状态转换产生的事件。
+         * 调用者完成 Outbox 写入后事件列表会清空，避免同一进程内重复发送。
+         */
         List<DomainEvent> pendingEvents = List.copyOf(events);
         events.clear();
         return pendingEvents;

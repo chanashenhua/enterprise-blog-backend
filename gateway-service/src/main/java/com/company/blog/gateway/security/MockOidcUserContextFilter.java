@@ -16,6 +16,12 @@ import reactor.core.publisher.Mono;
 
 @Component
 @Profile("dev")
+/**
+ * 仅在 {@code dev} Profile 中启用的本地身份模拟器。
+ *
+ * <p>它需要独立的模拟令牌，并把 {@code X-Mock-*} 转换为下游可信头后删除原头。生产环境不加载
+ * 此 Bean，实际 OIDC 集成应在同一位置注入经过认证的用户上下文。</p>
+ */
 public class MockOidcUserContextFilter implements GlobalFilter, Ordered {
     public static final String MOCK_USER_HEADER = "X-Mock-User";
     public static final String MOCK_ROLES_HEADER = "X-Mock-Roles";
@@ -43,6 +49,7 @@ public class MockOidcUserContextFilter implements GlobalFilter, Ordered {
         String traceId = firstNonBlank(sourceHeaders, TRACE_ID_HEADER)
                 .orElseGet(() -> UUID.randomUUID().toString());
 
+        // 再次清除可信头后才写入模拟身份，避免原始请求头与开发身份混用。
         ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
                 .headers(headers -> {
                     TrustedUserContextHeaderFilter.removeTrustedHeaders(headers);

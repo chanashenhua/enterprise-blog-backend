@@ -7,6 +7,12 @@ import com.company.blog.search.index.ArticleSearchDocument;
 import org.springframework.stereotype.Service;
 
 @Service
+/**
+ * 搜索用例的薄编排层。
+ *
+ * <p>索引的存取细节留在仓储实现中；可见范围过滤和权限服务校验保持独立，以便 Elasticsearch
+ * 只是候选集来源，而不是授权事实来源。</p>
+ */
 public class SearchService {
     private final ArticleSearchRepository repository;
     private final PermissionCheckClient permissionCheckClient;
@@ -30,6 +36,7 @@ public class SearchService {
     }
 
     public boolean visibleTo(UserContext user, ArticleSearchDocument document) {
+        // 两层判断缺一不可：组织范围先过滤，权限服务再给出最终授权结论。
         return visibilityFilter.isVisible(user, document) && permissionCheckClient.canRead(user, document);
     }
 }

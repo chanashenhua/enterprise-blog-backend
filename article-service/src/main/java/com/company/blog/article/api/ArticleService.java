@@ -11,6 +11,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+/**
+ * 文章用例编排服务。
+ *
+ * <p>它负责将草稿、权限检查、审核策略和搜索索引事件串成一次业务操作；领域对象
+ * {@link Article} 负责状态是否合法，外部服务客户端只负责各自的远程契约。</p>
+ */
 public class ArticleService {
     private final ArticleMemoryRepository repository;
     private final TagValidationClient tagValidationClient;
@@ -45,6 +51,7 @@ public class ArticleService {
         if (request.contentJson() == null || request.contentJson().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "contentJson is required");
         }
+        // 标签由标签服务统一维护，保存前拒绝不存在的标签，避免产生不可检索的脏关联。
         tagValidationClient.validate(request.tagIds());
         Article article = Article.draft(UUID.randomUUID().toString(), authorId, request.title());
         ArticleContentProjection content = ArticleContentProjection.from(request.contentJson());
@@ -64,6 +71,7 @@ public class ArticleService {
         permissionCheckClient.requirePublishAllowed(callerContext, article, request);
         ArticleVisibilityType visibilityType = parseVisibilityType(request.visibilityType());
         boolean reviewRequired = reviewPolicyClient.reviewRequired(request);
+        // 全公司可见文章或不要求审核的范围可直接发布；其余情况先创建审核单。
         if (visibilityType == ArticleVisibilityType.COMPANY || !reviewRequired) {
             synchronized (storedArticle) {
                 article.submitForPublish(visibilityType, request.targetOrgIds(), false);
@@ -92,6 +100,7 @@ public class ArticleService {
     ) {
         synchronized (storedArticle) {
             Article article = storedArticle.article();
+            // 领域对象用审核请求 ID 判定回调是否过期，并保证同一回调只产生一次发布事件。
             if (article.approveFromReview(reviewTicketId, reviewRequestId)) {
                 articleOutbox.appendArticleEvents(storedArticle, article.pullEvents());
                 repository.save(storedArticle);
@@ -111,6 +120,7 @@ public class ArticleService {
     ) {
         synchronized (storedArticle) {
             Article article = storedArticle.article();
+            // 过期或重复的拒绝回调不改变当前文章，避免旧审核单覆盖一次新的提交。
             if (article.rejectFromReview(reviewTicketId, reviewRequestId)) {
                 repository.save(storedArticle);
             }

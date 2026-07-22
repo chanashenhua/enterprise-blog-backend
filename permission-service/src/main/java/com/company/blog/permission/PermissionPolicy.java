@@ -3,6 +3,12 @@ package com.company.blog.permission;
 import com.company.blog.permission.api.PermissionCheckRequest;
 import java.util.Set;
 
+/**
+ * 集中定义文章相关的授权规则。
+ *
+ * <p>发布、审核和编辑通过角色或所有权判断；阅读再根据公司、部门、团队的目标组织范围判断。
+ * 新的权限动作应在这里显式加入，默认拒绝未知动作。</p>
+ */
 public class PermissionPolicy {
     public PermissionDecision check(PermissionCheckRequest request) {
         if (request.userId() == null || request.userId().isBlank()) {
@@ -25,6 +31,7 @@ public class PermissionPolicy {
     }
 
     private PermissionDecision checkArticleRead(PermissionCheckRequest request) {
+        // 文章服务传入的可见范围决定需要比对哪一种组织集合。
         return switch (request.visibilityType()) {
             case "company" -> PermissionDecision.allow();
             case "department" -> intersects(request.departmentIds(), request.targetOrgIds())

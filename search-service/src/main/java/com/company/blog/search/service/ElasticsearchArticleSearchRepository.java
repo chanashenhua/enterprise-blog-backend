@@ -17,6 +17,12 @@ import org.springframework.stereotype.Repository;
 import org.springframework.web.client.RestClient;
 
 @Repository
+/**
+ * Elasticsearch 的文章索引实现。
+ *
+ * <p>查询 DSL 先在 ES 中按发布状态和组织范围缩小候选集，返回结果后仍逐条调用权限服务复核，
+ * 防止索引延迟或权限规则变化导致越权展示。</p>
+ */
 public class ElasticsearchArticleSearchRepository implements ArticleSearchRepository {
     private static final String INDEX_NAME = "articles-v1";
 
@@ -88,6 +94,7 @@ public class ElasticsearchArticleSearchRepository implements ArticleSearchReposi
         ObjectNode bool = root.putObject("query").putObject("bool");
         ArrayNode filters = bool.putArray("filter");
         filters.addObject().putObject("term").put("status", "PUBLISHED");
+        // 组织范围作为 ES 过滤条件，既减少返回量，也避免将其他团队文章作为候选带回应用层。
         ObjectNode visibilityBool = filters.addObject().putObject("bool");
         ArrayNode visibility = visibilityBool.putArray("should");
         visibility.addObject().putObject("term").put("visibility_type", "company");
@@ -120,6 +127,7 @@ public class ElasticsearchArticleSearchRepository implements ArticleSearchReposi
             List<SearchArticleResponse.Article> items = new ArrayList<>();
             for (JsonNode hit : root.path("hits").path("hits")) {
                 ArticleSearchDocument document = documentFrom(hit.path("_source"));
+                // ES 索引不是权限系统；即使 DSL 已过滤，也要在返回前再做授权复核。
                 if (visibilityFilter.isVisible(user, document) && permissionCheckClient.canRead(user, document)) {
                     items.add(new SearchArticleResponse.Article(
                             document.articleId(), document.title(), document.summary(), document.tags(),

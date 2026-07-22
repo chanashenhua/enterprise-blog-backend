@@ -10,6 +10,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
+/**
+ * 对已上传的 MinIO 对象做可信性复核。
+ *
+ * <p>除了对象元数据，还读取对象字节并按格式解析。这样客户端即使伪造扩展名或 MIME 类型，也不能
+ * 将任意内容作为受支持的图片或 PDF 绑定到文章。</p>
+ */
 public class MinioObjectStorageVerifier implements ObjectStorageVerifier {
     private final MinioClient minioClient;
     private final String bucket;
@@ -37,6 +43,7 @@ public class MinioObjectStorageVerifier implements ObjectStorageVerifier {
             if (!normalizedContentType(contentType).equals(normalizedContentType(object.contentType()))) {
                 throw new FileValidationException("UPLOADED_FILE_TYPE_MISMATCH");
             }
+            // 启用版本号后，验证和后续下载绑定到同一个不可变对象版本。
             String versionId = requireVersionId(object.versionId());
 
             try (GetObjectResponse response = minioClient.getObject(

@@ -5,6 +5,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 从编辑器 JSON 生成的安全展示与检索投影。
+ *
+ * <p>HTML 由受控节点重新渲染并转义文本，不能直接把客户端传入的 HTML 返回给页面；
+ * 纯文本则供摘要和 Elasticsearch 全文检索使用。</p>
+ */
 public record ArticleContentProjection(String renderedHtml, String plainText) {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 

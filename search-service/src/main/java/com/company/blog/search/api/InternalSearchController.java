@@ -15,6 +15,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/internal/search/articles")
+/**
+ * 搜索索引的内部维护入口，仅由文章服务的 Outbox 投递器调用。
+ */
 public class InternalSearchController {
     private final SearchService searchService;
     private final String internalToken;
@@ -28,12 +31,14 @@ public class InternalSearchController {
     }
 
     @PostMapping("/index")
+    /** 用文章发布事件中的快照建立或覆盖索引文档。 */
     public void index(@RequestHeader("X-Internal-Token") String token, @RequestBody IndexArticleRequest request) {
         requireToken(token);
         searchService.index(ArticleSearchDocument.from(request));
     }
 
     @DeleteMapping("/{articleId}")
+    /** 删除文章对应的搜索文档，供后续下线或删除流程调用。 */
     public void delete(@RequestHeader("X-Internal-Token") String token, @PathVariable String articleId) {
         requireToken(token);
         searchService.delete(articleId);

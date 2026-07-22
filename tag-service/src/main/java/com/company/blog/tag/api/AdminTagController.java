@@ -9,8 +9,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
+/** 管理后台标签选择器的数据接口，只有 ADMIN 角色可以读取完整目录。 */
 public class AdminTagController {
     @GetMapping("/api/admin/tags")
+    /** 返回当前可供文章使用的标签目录。 */
     public List<TagResponse> list(@RequestHeader HttpHeaders headers) {
         requireAdmin(headers);
         return List.of(

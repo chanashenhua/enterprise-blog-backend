@@ -12,6 +12,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
+/**
+ * 基于 PostgreSQL 的审核票据仓储。
+ *
+ * <p>文章 ID 与审核请求 ID 的唯一约束使创建可重试；条件更新使并发审批只能有一个请求完成状态转换。</p>
+ */
 public class JdbcReviewTicketRepository implements ReviewTicketRepository {
     private final JdbcTemplate jdbcTemplate;
 
@@ -29,6 +34,7 @@ public class JdbcReviewTicketRepository implements ReviewTicketRepository {
         try {
             return insert(ticket);
         } catch (DuplicateKeyException ex) {
+            // 已创建说明是同一次调用重试，返回已有票据而不是生成第二个审核任务。
             return findByArticleAndReviewRequest(ticket.articleId(), ticket.reviewRequestId()).orElseThrow(() -> ex);
         }
     }
@@ -172,6 +178,7 @@ public class JdbcReviewTicketRepository implements ReviewTicketRepository {
             ReviewTicketStatus targetStatus,
             boolean allowExistingTarget
     ) {
+        // 将期望旧状态放进 WHERE 条件，相当于一次轻量级乐观并发控制。
         int changed = jdbcTemplate.update(
                 """
                         update review_ticket

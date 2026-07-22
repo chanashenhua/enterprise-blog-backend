@@ -4,6 +4,12 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * 上传请求的第一道静态校验。
+ *
+ * <p>它校验文件名扩展名、客户端声明 MIME 类型和大小限制；实际字节内容由
+ * {@code UploadedContentValidator} 在对象上传后复核。</p>
+ */
 public final class FileValidation {
     private static final Map<String, Set<String>> EXTENSIONS_BY_CONTENT_TYPE = Map.of(
             "image/png", Set.of("png"),
@@ -36,6 +42,7 @@ public final class FileValidation {
         }
 
         String normalizedContentType = contentType == null ? "" : contentType.trim().toLowerCase(Locale.ROOT);
+        // MIME 类型和扩展名必须形成允许的组合，不能仅凭客户端传来的 Content-Type 放行。
         Set<String> allowedExtensions = EXTENSIONS_BY_CONTENT_TYPE.get(normalizedContentType);
         if (!allowedContentTypes.contains(normalizedContentType) || allowedExtensions == null
                 || !allowedExtensions.contains(extensionOf(originalName))) {

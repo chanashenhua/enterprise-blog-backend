@@ -8,6 +8,12 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
+/**
+ * 定时投递待发送的文章发布事件到搜索服务。
+ *
+ * <p>采用至少一次投递：只有搜索服务成功接收后才标记 DELIVERED；失败会累计重试次数，
+ * 超过上限后标为 FAILED，留给运维人员或补偿任务处理。</p>
+ */
 public class ArticleSearchOutboxDispatcher {
     private final JdbcTemplate jdbcTemplate;
     private final ArticleSearchIndexClient searchIndexClient;
@@ -27,6 +33,7 @@ public class ArticleSearchOutboxDispatcher {
     }
 
     @Scheduled(fixedDelayString = "${blog.outbox.search.fixed-delay-ms:5000}")
+    /** 每轮限量拉取，避免大量积压事件占满数据库连接或压垮搜索服务。 */
     public void deliverPending() {
         List<Map<String, Object>> events = jdbcTemplate.queryForList(
                 "select id, payload_json from domain_event where event_type = 'ArticlePublished' and status = 'PENDING' order by created_at limit ?",
@@ -35,6 +42,7 @@ public class ArticleSearchOutboxDispatcher {
         for (Map<String, Object> event : events) {
             String eventId = (String) event.get("id");
             try {
+                // 先完成远程写入，再改变本地状态，保证失败时仍可被下一轮重新投递。
                 searchIndexClient.index((String) event.get("payload_json"));
                 jdbcTemplate.update(
                         "update domain_event set status = 'DELIVERED', updated_at = current_timestamp where id = ? and status = 'PENDING'",

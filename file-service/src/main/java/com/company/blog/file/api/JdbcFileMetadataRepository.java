@@ -7,6 +7,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
+/**
+ * 文件元数据与业务绑定关系的 PostgreSQL 实现。
+ *
+ * <p>二进制对象仍保存在 MinIO；数据库只保存归属、校验结果和引用关系，以便授权查询和审计。</p>
+ */
 public class JdbcFileMetadataRepository implements FileMetadataRepository {
     private final JdbcTemplate jdbcTemplate;
 
@@ -79,7 +84,7 @@ public class JdbcFileMetadataRepository implements FileMetadataRepository {
                 """
                         insert into file_binding (file_id, resource_type, resource_id)
                         values (?, ?, ?)
-                        on conflict do nothing
+                on conflict do nothing
                         """,
                 fileId,
                 resourceType,

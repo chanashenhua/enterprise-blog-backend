@@ -16,6 +16,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/search/articles")
+/**
+ * 面向登录用户的文章检索接口。
+ *
+ * <p>查询身份始终来自网关传来的用户上下文，不能由 query 参数指定；这样搜索条件与权限判断使用同一人。</p>
+ */
 public class SearchController {
     private final SearchService searchService;
 
@@ -24,6 +29,7 @@ public class SearchController {
     }
 
     @GetMapping
+    /** 按关键词、页码和页大小搜索当前用户有权阅读的已发布文章。 */
     public SearchArticleResponse search(
             @RequestHeader HttpHeaders headers,
             @RequestParam(value = "q", required = false) String query,
