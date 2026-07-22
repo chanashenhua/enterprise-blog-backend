@@ -2,7 +2,7 @@ ALTER TABLE review_ticket
     DROP CONSTRAINT uq_review_ticket_article;
 
 ALTER TABLE review_ticket
-    ADD COLUMN review_request_id VARCHAR(64); -- 一次发布提交的审核请求标识，用于回调幂等控制
+    ADD COLUMN review_request_id VARCHAR(64);
 
 UPDATE review_ticket
 SET review_request_id = id

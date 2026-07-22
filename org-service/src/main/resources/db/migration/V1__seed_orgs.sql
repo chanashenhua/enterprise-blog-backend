@@ -1,12 +1,12 @@
 CREATE TABLE department (
-    id VARCHAR(64) PRIMARY KEY, -- 部门唯一标识
-    name VARCHAR(128) NOT NULL -- 部门名称
+    id VARCHAR(64) PRIMARY KEY,
+    name VARCHAR(128) NOT NULL
 );
 
 CREATE TABLE team (
-    id VARCHAR(64) PRIMARY KEY, -- 团队唯一标识
-    department_id VARCHAR(64) NOT NULL REFERENCES department(id), -- 所属部门标识
-    name VARCHAR(128) NOT NULL -- 团队名称
+    id VARCHAR(64) PRIMARY KEY,
+    department_id VARCHAR(64) NOT NULL REFERENCES department(id),
+    name VARCHAR(128) NOT NULL
 );
 
 INSERT INTO department (id, name) VALUES
