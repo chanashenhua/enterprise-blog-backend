@@ -1,18 +1,18 @@
 CREATE TABLE blog_user (
-    id VARCHAR(64) PRIMARY KEY,
-    display_name VARCHAR(128) NOT NULL
+    id VARCHAR(64) PRIMARY KEY, -- 用户唯一标识
+    display_name VARCHAR(128) NOT NULL -- 用户显示名称
 );
 
 CREATE TABLE user_role (
-    user_id VARCHAR(64) NOT NULL REFERENCES blog_user(id),
-    role_code VARCHAR(64) NOT NULL,
+    user_id VARCHAR(64) NOT NULL REFERENCES blog_user(id), -- 用户标识
+    role_code VARCHAR(64) NOT NULL, -- 角色编码：ADMIN、AUTHOR、REVIEWER、READER
     PRIMARY KEY (user_id, role_code)
 );
 
 CREATE TABLE user_org_membership (
-    user_id VARCHAR(64) NOT NULL REFERENCES blog_user(id),
-    department_id VARCHAR(64) NOT NULL,
-    team_id VARCHAR(64) NOT NULL,
+    user_id VARCHAR(64) NOT NULL REFERENCES blog_user(id), -- 用户标识
+    department_id VARCHAR(64) NOT NULL, -- 所属部门标识
+    team_id VARCHAR(64) NOT NULL, -- 所属团队标识
     PRIMARY KEY (user_id, department_id, team_id)
 );
 
