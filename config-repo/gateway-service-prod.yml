@@ -1,0 +1,14 @@
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI}
+
+blog:
+  oidc:
+    claims:
+      user-id: ${OIDC_USER_ID_CLAIM:sub}
+      roles: ${OIDC_ROLES_CLAIM:roles}
+      departments: ${OIDC_DEPARTMENTS_CLAIM:department_ids}
+      teams: ${OIDC_TEAMS_CLAIM:team_ids}
