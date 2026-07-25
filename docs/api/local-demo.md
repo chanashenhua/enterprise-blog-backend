@@ -29,12 +29,14 @@ Get-Content infra/postgres/seed-demo-data.sql | docker compose exec -T postgres 
 ### 不使用 Docker 的本机 PostgreSQL
 
 本机单库调试使用 `jdbc:postgresql://localhost:5432/postgres`。密码只通过当前终端环境变量传入，
-不要写入 Git。`V3` 迁移只在数据库尚无对应字段和 `article_tag` 表时执行一次；种子脚本可重复执行：
+不要写入 Git。`V3`、`V4` 迁移只在数据库尚无对应结构时各执行一次；种子脚本可重复执行：
 
 ```powershell
 $env:PGPASSWORD = Read-Host 'PostgreSQL password'
 psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
   -f article-service/src/main/resources/db/migration/V3__persist_article_aggregate.sql
+psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
+  -f article-service/src/main/resources/db/migration/V4__article_content_versions.sql
 psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
   -f infra/postgres/seed-local-demo-data.sql
 Remove-Item Env:PGPASSWORD
@@ -49,6 +51,8 @@ Remove-Item Env:PGPASSWORD
 - PostgreSQL 持久化草稿；
 - 全公司可见的已发布文章；
 - 搜索团队可见的待审核文章及对应审核单。
+
+每篇演示文章还会建立一个初始内容版本，可用于验证文章版本列表接口。
 
 ## 核心验收
 

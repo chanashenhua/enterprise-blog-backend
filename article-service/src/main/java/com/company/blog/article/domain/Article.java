@@ -112,6 +112,47 @@ public final class Article {
         return article;
     }
 
+    /**
+     * 修改草稿标题。撤回的文章在首次修改时重新进入草稿状态，之后可再次提交发布。
+     */
+    public void updateDraft(String title) {
+        if (status != ArticleStatus.DRAFT && status != ArticleStatus.WITHDRAWN) {
+            throw new IllegalStateException("Only draft or withdrawn articles can be edited");
+        }
+        this.title = requireText(title, "title");
+        if (status == ArticleStatus.WITHDRAWN) {
+            this.status = ArticleStatus.DRAFT;
+            this.visibilityType = null;
+            this.visibilityTargetIds = Set.of();
+            this.reviewRequestId = null;
+            this.approvedByReviewTicketId = null;
+            this.rejectedByReviewTicketId = null;
+        }
+        this.updatedAt = Instant.now();
+    }
+
+    public void withdraw() {
+        if (status != ArticleStatus.PUBLISHED) {
+            throw new IllegalStateException("Only published articles can be withdrawn");
+        }
+        this.status = ArticleStatus.WITHDRAWN;
+        this.events.add(DomainEvent.articleWithdrawn(id));
+        this.updatedAt = Instant.now();
+    }
+
+    public boolean delete() {
+        if (status == ArticleStatus.DELETED) {
+            return false;
+        }
+        if (status == ArticleStatus.PENDING_REVIEW) {
+            throw new IllegalStateException("Pending review articles cannot be deleted");
+        }
+        this.status = ArticleStatus.DELETED;
+        this.events.add(DomainEvent.articleDeleted(id));
+        this.updatedAt = Instant.now();
+        return true;
+    }
+
     public void submitForPublish(
             ArticleVisibilityType visibilityType,
             Set<String> targetOrgIds,

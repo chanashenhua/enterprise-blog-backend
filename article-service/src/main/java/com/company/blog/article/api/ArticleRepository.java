@@ -1,5 +1,6 @@
 package com.company.blog.article.api;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -14,4 +15,10 @@ public interface ArticleRepository {
     Optional<StoredArticle> findById(String articleId);
 
     Optional<StoredArticle> findByIdForUpdate(String articleId);
+
+    List<StoredArticle> findByAuthorId(String authorId);
+
+    ArticleContentVersion appendContentVersion(StoredArticle article, String createdBy);
+
+    List<ArticleContentVersion> findContentVersions(String articleId);
 }

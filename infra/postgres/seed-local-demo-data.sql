@@ -117,6 +117,54 @@ SET content_json = EXCLUDED.content_json,
     rendered_html = EXCLUDED.rendered_html,
     plain_text = EXCLUDED.plain_text;
 
+INSERT INTO article_content_version (
+    article_id,
+    version_no,
+    title,
+    content_json,
+    rendered_html,
+    plain_text,
+    tag_ids,
+    created_by
+) VALUES
+    (
+        'a-demo-draft',
+        1,
+        'PostgreSQL 文章持久化草稿',
+        $json${"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"这是一篇用于验证 PostgreSQL 持久化的草稿。"}]}]}$json$,
+        '<p>这是一篇用于验证 PostgreSQL 持久化的草稿。</p>',
+        '这是一篇用于验证 PostgreSQL 持久化的草稿。',
+        'postgresql',
+        'u-author'
+    ),
+    (
+        'a-demo-company-published',
+        1,
+        'Spring Cloud 内部博客实践',
+        $json${"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"介绍 Spring Cloud 在企业内部博客中的服务治理实践。"}]}]}$json$,
+        '<p>介绍 Spring Cloud 在企业内部博客中的服务治理实践。</p>',
+        '介绍 Spring Cloud 在企业内部博客中的服务治理实践。',
+        'java,spring-cloud',
+        'u-author'
+    ),
+    (
+        'a-demo-team-review',
+        1,
+        '搜索团队索引优化方案',
+        $json${"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"仅搜索团队可见、等待审核的索引优化方案。"}]}]}$json$,
+        '<p>仅搜索团队可见、等待审核的索引优化方案。</p>',
+        '仅搜索团队可见、等待审核的索引优化方案。',
+        'elasticsearch',
+        'u-author'
+    )
+ON CONFLICT (article_id, version_no) DO UPDATE
+SET title = EXCLUDED.title,
+    content_json = EXCLUDED.content_json,
+    rendered_html = EXCLUDED.rendered_html,
+    plain_text = EXCLUDED.plain_text,
+    tag_ids = EXCLUDED.tag_ids,
+    created_by = EXCLUDED.created_by;
+
 DELETE FROM article_visibility_target
 WHERE article_id IN ('a-demo-draft', 'a-demo-company-published', 'a-demo-team-review');
 

@@ -13,4 +13,12 @@ public record DomainEvent(String type, String aggregateId, Instant occurredAt) {
     public static DomainEvent articlePublished(String articleId) {
         return new DomainEvent("ArticlePublished", articleId, Instant.now());
     }
+
+    public static DomainEvent articleWithdrawn(String articleId) {
+        return new DomainEvent("ArticleWithdrawn", articleId, Instant.now());
+    }
+
+    public static DomainEvent articleDeleted(String articleId) {
+        return new DomainEvent("ArticleDeleted", articleId, Instant.now());
+    }
 }

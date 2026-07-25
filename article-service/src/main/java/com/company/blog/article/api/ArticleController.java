@@ -1,5 +1,7 @@
 package com.company.blog.article.api;
 
+import java.util.List;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -8,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PutMapping;
 
 @RestController
 @RequestMapping("/api/articles")
@@ -22,6 +25,16 @@ public class ArticleController {
 
     public ArticleController(ArticleService articleService) {
         this.articleService = articleService;
+    }
+
+    @PutMapping("/{articleId}/draft")
+    /** 修改草稿；撤回的文章修改后会重新进入草稿状态。 */
+    public ArticleResponse updateDraft(
+            @PathVariable("articleId") String articleId,
+            @RequestHeader HttpHeaders headers,
+            @RequestBody UpdateDraftRequest request
+    ) {
+        return articleService.updateDraft(articleId, CallerContext.from(headers), request);
     }
 
     @PostMapping("/drafts")
@@ -46,9 +59,45 @@ public class ArticleController {
         return articleService.submitForPublish(articleId, CallerContext.from(headers), request);
     }
 
+    @PostMapping("/{articleId}/withdraw")
+    /** 撤回已发布文章，并通过 Outbox 异步移除搜索索引。 */
+    public ArticleResponse withdraw(
+            @PathVariable("articleId") String articleId,
+            @RequestHeader HttpHeaders headers
+    ) {
+        return articleService.withdraw(articleId, CallerContext.from(headers));
+    }
+
+    @DeleteMapping("/{articleId}")
+    /** 软删除文章，保留治理和审计所需的数据库记录。 */
+    public ArticleResponse delete(
+            @PathVariable("articleId") String articleId,
+            @RequestHeader HttpHeaders headers
+    ) {
+        return articleService.delete(articleId, CallerContext.from(headers));
+    }
+
+    @GetMapping("/mine")
+    /** 查询当前用户未删除的草稿、待审核、已发布和已撤回文章。 */
+    public List<ArticleResponse> listMine(@RequestHeader HttpHeaders headers) {
+        return articleService.listMine(CallerContext.from(headers));
+    }
+
+    @GetMapping("/{articleId}/versions")
+    /** 仅作者或管理员可查看文章内容版本。 */
+    public List<ArticleContentVersion> listVersions(
+            @PathVariable("articleId") String articleId,
+            @RequestHeader HttpHeaders headers
+    ) {
+        return articleService.listVersions(articleId, CallerContext.from(headers));
+    }
+
     @GetMapping("/{articleId}")
-    /** 读取文章当前状态；MVP 阶段用于作者及审核流程查询。 */
-    public ArticleResponse get(@PathVariable("articleId") String articleId) {
-        return articleService.get(articleId);
+    /** 读取文章当前状态；已发布文章按可见范围鉴权，其他状态只允许作者或管理员查看。 */
+    public ArticleResponse get(
+            @PathVariable("articleId") String articleId,
+            @RequestHeader HttpHeaders headers
+    ) {
+        return articleService.get(articleId, CallerContext.from(headers));
     }
 }

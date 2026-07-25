@@ -28,6 +28,7 @@ class ArticleMigrationTest {
         assertThat(tableExists(jdbc, "ARTICLE_VISIBILITY_TARGET")).isTrue();
         assertThat(tableExists(jdbc, "ARTICLE_PUBLISH_RECORD")).isTrue();
         assertThat(tableExists(jdbc, "ARTICLE_TAG")).isTrue();
+        assertThat(tableExists(jdbc, "ARTICLE_CONTENT_VERSION")).isTrue();
         assertThat(tableExists(jdbc, "DOMAIN_EVENT")).isTrue();
         assertThat(columnExists(jdbc, "ARTICLE", "VISIBILITY_TYPE")).isTrue();
         assertThat(columnExists(jdbc, "ARTICLE", "REVIEW_REQUEST_ID")).isTrue();

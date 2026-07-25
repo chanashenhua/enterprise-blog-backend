@@ -18,16 +18,64 @@ public class HttpPermissionCheckClient implements PermissionCheckClient {
 
     @Override
     public void requirePublishAllowed(CallerContext callerContext, Article article, SubmitPublishRequest request) {
+        requireAllowed(
+                callerContext,
+                article,
+                "article.publish",
+                request.visibilityType().toLowerCase(Locale.ROOT),
+                request.targetOrgIds()
+        );
+    }
+
+    @Override
+    public void requireReadAllowed(CallerContext callerContext, Article article) {
+        requireAllowed(
+                callerContext,
+                article,
+                "article.read",
+                visibilityType(article),
+                article.visibilityTargetIds()
+        );
+    }
+
+    @Override
+    public void requireEditAllowed(CallerContext callerContext, Article article) {
+        requireAllowed(callerContext, article, "article.edit", visibilityType(article), article.visibilityTargetIds());
+    }
+
+    @Override
+    public void requireWithdrawAllowed(CallerContext callerContext, Article article) {
+        requireAllowed(
+                callerContext,
+                article,
+                "article.withdraw",
+                visibilityType(article),
+                article.visibilityTargetIds()
+        );
+    }
+
+    @Override
+    public void requireDeleteAllowed(CallerContext callerContext, Article article) {
+        requireAllowed(callerContext, article, "article.delete", visibilityType(article), article.visibilityTargetIds());
+    }
+
+    private void requireAllowed(
+            CallerContext callerContext,
+            Article article,
+            String action,
+            String visibilityType,
+            java.util.Set<String> targetOrgIds
+    ) {
         PermissionCheckRequest permissionRequest = new PermissionCheckRequest(
                 callerContext.userId(),
                 callerContext.roles(),
                 callerContext.departmentIds(),
                 callerContext.teamIds(),
-                "article.publish",
+                action,
                 "article",
                 article.authorId(),
-                request.visibilityType().toLowerCase(Locale.ROOT),
-                request.targetOrgIds()
+                visibilityType,
+                targetOrgIds
         );
         PermissionCheckResponse response = restClient.post()
                 .uri("/internal/permissions/check")
@@ -37,5 +85,11 @@ public class HttpPermissionCheckClient implements PermissionCheckClient {
         if (response == null || !response.allowed()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, response == null ? "PERMISSION_DENIED" : response.reason());
         }
+    }
+
+    private static String visibilityType(Article article) {
+        return article.visibilityType() == null
+                ? "company"
+                : article.visibilityType().name().toLowerCase(Locale.ROOT);
     }
 }

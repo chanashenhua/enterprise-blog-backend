@@ -43,6 +43,10 @@ class JdbcArticleRepositoryTest {
                 ArticleContentProjection.from(contentJson),
                 Set.of("postgresql", "java")
         ));
+        firstRepository.appendContentVersion(
+                firstRepository.findById("a-restart").orElseThrow(),
+                "u-author"
+        );
 
         JdbcArticleRepository repositoryAfterRestart = new JdbcArticleRepository(jdbcTemplate);
         StoredArticle restored = repositoryAfterRestart.findById("a-restart").orElseThrow();
@@ -58,5 +62,12 @@ class JdbcArticleRepositoryTest {
                 .isCloseTo(article.createdAt(), within(1, ChronoUnit.MICROS));
         assertThat(restored.article().updatedAt())
                 .isCloseTo(article.updatedAt(), within(1, ChronoUnit.MICROS));
+        assertThat(repositoryAfterRestart.findContentVersions("a-restart"))
+                .singleElement()
+                .satisfies(version -> {
+                    assertThat(version.versionNo()).isEqualTo(1);
+                    assertThat(version.title()).isEqualTo("重启后仍可读取");
+                    assertThat(version.tagIds()).containsExactlyInAnyOrder("postgresql", "java");
+                });
     }
 }

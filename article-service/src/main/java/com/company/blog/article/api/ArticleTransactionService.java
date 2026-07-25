@@ -1,6 +1,7 @@
 package com.company.blog.article.api;
 
 import com.company.blog.article.domain.Article;
+import com.company.blog.article.domain.ArticleContentProjection;
 import com.company.blog.article.domain.ArticleVisibilityType;
 import java.util.Set;
 import org.springframework.http.HttpStatus;
@@ -26,8 +27,35 @@ public class ArticleTransactionService {
 
     @Transactional
     public StoredArticle saveDraft(StoredArticle article) {
+        return saveDraft(article, article.article().authorId());
+    }
+
+    @Transactional
+    public StoredArticle saveDraft(StoredArticle article, String createdBy) {
         repository.save(article);
+        repository.appendContentVersion(article, createdBy);
         return article;
+    }
+
+    @Transactional
+    public StoredArticle updateDraft(
+            String articleId,
+            String title,
+            String contentJson,
+            Set<String> tagIds,
+            String updatedBy
+    ) {
+        StoredArticle current = findForUpdate(articleId);
+        current.article().updateDraft(title);
+        StoredArticle updated = new StoredArticle(
+                current.article(),
+                contentJson,
+                ArticleContentProjection.from(contentJson),
+                tagIds
+        );
+        repository.save(updated);
+        repository.appendContentVersion(updated, updatedBy);
+        return updated;
     }
 
     @Transactional
@@ -80,6 +108,27 @@ public class ArticleTransactionService {
         StoredArticle storedArticle = findForUpdate(articleId);
         if (storedArticle.article().rejectFromReview(reviewTicketId, reviewRequestId)) {
             repository.save(storedArticle);
+        }
+        return storedArticle;
+    }
+
+    @Transactional
+    public StoredArticle withdraw(String articleId) {
+        StoredArticle storedArticle = findForUpdate(articleId);
+        Article article = storedArticle.article();
+        article.withdraw();
+        repository.save(storedArticle);
+        articleOutbox.appendArticleEvents(storedArticle, article.pullEvents());
+        return storedArticle;
+    }
+
+    @Transactional
+    public StoredArticle delete(String articleId) {
+        StoredArticle storedArticle = findForUpdate(articleId);
+        Article article = storedArticle.article();
+        if (article.delete()) {
+            repository.save(storedArticle);
+            articleOutbox.appendArticleEvents(storedArticle, article.pullEvents());
         }
         return storedArticle;
     }

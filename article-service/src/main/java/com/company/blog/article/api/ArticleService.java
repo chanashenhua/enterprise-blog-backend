@@ -4,6 +4,7 @@ import com.company.blog.article.domain.Article;
 import com.company.blog.article.domain.ArticleContentProjection;
 import com.company.blog.article.domain.ArticleStatus;
 import com.company.blog.article.domain.ArticleVisibilityType;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,15 +66,8 @@ public class ArticleService {
     }
 
     public ArticleResponse saveDraft(String authorId, SaveDraftRequest request) {
-        if (authorId == null || authorId.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "X-User-Id is required");
-        }
-        if (request.title() == null || request.title().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "title is required");
-        }
-        if (request.contentJson() == null || request.contentJson().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "contentJson is required");
-        }
+        requireUserId(authorId);
+        validateDraft(request.title(), request.contentJson());
         // 标签由标签服务统一维护，保存前拒绝不存在的标签，避免产生不可检索的脏关联。
         tagValidationClient.validate(request.tagIds());
         Article article = Article.draft(UUID.randomUUID().toString(), authorId, request.title());
@@ -84,7 +78,26 @@ public class ArticleService {
                 content,
                 request.tagIds()
         );
-        return ArticleResponse.from(transactionService.saveDraft(storedArticle));
+        return ArticleResponse.from(transactionService.saveDraft(storedArticle, authorId));
+    }
+
+    public ArticleResponse updateDraft(
+            String articleId,
+            CallerContext callerContext,
+            UpdateDraftRequest request
+    ) {
+        requireUserId(callerContext.userId());
+        validateDraft(request.title(), request.contentJson());
+        StoredArticle storedArticle = findStoredArticle(articleId);
+        permissionCheckClient.requireEditAllowed(callerContext, storedArticle.article());
+        tagValidationClient.validate(request.tagIds());
+        return ArticleResponse.from(transactionService.updateDraft(
+                articleId,
+                request.title(),
+                request.contentJson(),
+                request.tagIds(),
+                callerContext.userId()
+        ));
     }
 
     public ArticleResponse submitForPublish(String articleId, CallerContext callerContext, SubmitPublishRequest request) {
@@ -127,8 +140,53 @@ public class ArticleService {
         ));
     }
 
+    public ArticleResponse withdraw(String articleId, CallerContext callerContext) {
+        requireUserId(callerContext.userId());
+        StoredArticle storedArticle = findStoredArticle(articleId);
+        permissionCheckClient.requireWithdrawAllowed(callerContext, storedArticle.article());
+        return ArticleResponse.from(transactionService.withdraw(articleId));
+    }
+
+    public ArticleResponse delete(String articleId, CallerContext callerContext) {
+        requireUserId(callerContext.userId());
+        StoredArticle storedArticle = findStoredArticle(articleId);
+        permissionCheckClient.requireDeleteAllowed(callerContext, storedArticle.article());
+        return ArticleResponse.from(transactionService.delete(articleId));
+    }
+
+    public ArticleResponse get(String articleId, CallerContext callerContext) {
+        requireUserId(callerContext.userId());
+        StoredArticle storedArticle = findStoredArticle(articleId);
+        if (storedArticle.article().status() == ArticleStatus.DELETED) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Article not found");
+        }
+        if (storedArticle.article().status() == ArticleStatus.PUBLISHED) {
+            permissionCheckClient.requireReadAllowed(callerContext, storedArticle.article());
+        } else {
+            permissionCheckClient.requireEditAllowed(callerContext, storedArticle.article());
+        }
+        return ArticleResponse.from(storedArticle);
+    }
+
+    /**
+     * 兼容内部测试和尚未传入完整用户上下文的调用方；正式 HTTP 入口始终使用带上下文版本。
+     */
     public ArticleResponse get(String articleId) {
         return ArticleResponse.from(findStoredArticle(articleId));
+    }
+
+    public List<ArticleResponse> listMine(CallerContext callerContext) {
+        requireUserId(callerContext.userId());
+        return repository.findByAuthorId(callerContext.userId()).stream()
+                .map(ArticleResponse::from)
+                .toList();
+    }
+
+    public List<ArticleContentVersion> listVersions(String articleId, CallerContext callerContext) {
+        requireUserId(callerContext.userId());
+        StoredArticle storedArticle = findStoredArticle(articleId);
+        permissionCheckClient.requireEditAllowed(callerContext, storedArticle.article());
+        return repository.findContentVersions(articleId);
     }
 
     private StoredArticle findStoredArticle(String articleId) {
@@ -144,6 +202,21 @@ public class ArticleService {
             return ArticleVisibilityType.valueOf(visibilityType.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported visibilityType", ex);
+        }
+    }
+
+    private static void validateDraft(String title, String contentJson) {
+        if (title == null || title.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "title is required");
+        }
+        if (contentJson == null || contentJson.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "contentJson is required");
+        }
+    }
+
+    private static void requireUserId(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "X-User-Id is required");
         }
     }
 }

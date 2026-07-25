@@ -23,7 +23,7 @@ public class PermissionPolicy {
             case "article.review" -> hasAnyRole(request.roles(), "REVIEWER", "ADMIN")
                     ? PermissionDecision.allow()
                     : PermissionDecision.deny("ROLE_NOT_ALLOWED");
-            case "article.edit" -> canEditArticle(request)
+            case "article.edit", "article.withdraw", "article.delete" -> canEditArticle(request)
                     ? PermissionDecision.allow()
                     : PermissionDecision.deny("NOT_RESOURCE_OWNER");
             default -> PermissionDecision.deny("UNSUPPORTED_ACTION");

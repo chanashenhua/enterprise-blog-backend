@@ -73,9 +73,27 @@ class PermissionPolicyTest {
     }
 
     @Test
-    void deniesUnknownAction() {
+    void allowsDeleteForOwner() {
         PermissionDecision decision = policy.check(request(
                 Set.of("READER"), Set.of(), Set.of(), "article.delete", "u-1", "company", Set.of()
+        ));
+
+        assertThat(decision.allowed()).isTrue();
+    }
+
+    @Test
+    void allowsWithdrawForAdmin() {
+        PermissionDecision decision = policy.check(request(
+                Set.of("ADMIN"), Set.of(), Set.of(), "article.withdraw", "u-2", "company", Set.of()
+        ));
+
+        assertThat(decision.allowed()).isTrue();
+    }
+
+    @Test
+    void deniesUnknownAction() {
+        PermissionDecision decision = policy.check(request(
+                Set.of("READER"), Set.of(), Set.of(), "article.archive", "u-1", "company", Set.of()
         ));
 
         assertThat(decision.allowed()).isFalse();

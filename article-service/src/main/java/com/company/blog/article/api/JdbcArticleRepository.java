@@ -7,10 +7,13 @@ import com.company.blog.article.domain.ArticleVisibilityType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -93,6 +96,91 @@ public class JdbcArticleRepository implements ArticleRepository {
     @Override
     public Optional<StoredArticle> findByIdForUpdate(String articleId) {
         return find(articleId, true);
+    }
+
+    @Override
+    public List<StoredArticle> findByAuthorId(String authorId) {
+        return jdbcTemplate.queryForList(
+                        """
+                                select id
+                                from article
+                                where author_id = ? and status <> 'DELETED'
+                                order by updated_at desc, id
+                                """,
+                        String.class,
+                        authorId
+                ).stream()
+                .map(this::findById)
+                .flatMap(Optional::stream)
+                .toList();
+    }
+
+    @Override
+    public ArticleContentVersion appendContentVersion(StoredArticle storedArticle, String createdBy) {
+        Integer nextVersion = jdbcTemplate.queryForObject(
+                """
+                        select coalesce(max(version_no), 0) + 1
+                        from article_content_version
+                        where article_id = ?
+                        """,
+                Integer.class,
+                storedArticle.article().id()
+        );
+        int versionNo = nextVersion == null ? 1 : nextVersion;
+        Instant createdAt = Instant.now();
+        jdbcTemplate.update(
+                """
+                        insert into article_content_version
+                            (article_id, version_no, title, content_json, rendered_html,
+                             plain_text, tag_ids, created_by, created_at)
+                        values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                storedArticle.article().id(),
+                versionNo,
+                storedArticle.article().title(),
+                storedArticle.contentJson(),
+                storedArticle.content().renderedHtml(),
+                storedArticle.content().plainText(),
+                commaSeparated(storedArticle.tagIds()),
+                createdBy,
+                Timestamp.from(createdAt)
+        );
+        return new ArticleContentVersion(
+                storedArticle.article().id(),
+                versionNo,
+                storedArticle.article().title(),
+                storedArticle.contentJson(),
+                storedArticle.content().renderedHtml(),
+                storedArticle.content().plainText(),
+                storedArticle.tagIds(),
+                createdBy,
+                createdAt
+        );
+    }
+
+    @Override
+    public List<ArticleContentVersion> findContentVersions(String articleId) {
+        return jdbcTemplate.query(
+                """
+                        select article_id, version_no, title, content_json, rendered_html,
+                               plain_text, tag_ids, created_by, created_at
+                        from article_content_version
+                        where article_id = ?
+                        order by version_no
+                        """,
+                (resultSet, rowNumber) -> new ArticleContentVersion(
+                        resultSet.getString("article_id"),
+                        resultSet.getInt("version_no"),
+                        resultSet.getString("title"),
+                        resultSet.getString("content_json"),
+                        resultSet.getString("rendered_html"),
+                        resultSet.getString("plain_text"),
+                        commaSeparated(resultSet.getString("tag_ids")),
+                        resultSet.getString("created_by"),
+                        resultSet.getTimestamp("created_at").toInstant()
+                ),
+                articleId
+        );
     }
 
     private Optional<StoredArticle> find(String articleId, boolean forUpdate) {
@@ -235,6 +323,20 @@ public class JdbcArticleRepository implements ArticleRepository {
 
     private static ArticleVisibilityType visibilityType(String value) {
         return value == null ? null : ArticleVisibilityType.valueOf(value);
+    }
+
+    private static String commaSeparated(Set<String> values) {
+        return values.stream().sorted().collect(Collectors.joining(","));
+    }
+
+    private static Set<String> commaSeparated(String value) {
+        if (value == null || value.isBlank()) {
+            return Set.of();
+        }
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(item -> !item.isBlank())
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     private record ArticleRow(
