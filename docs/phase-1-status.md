@@ -42,6 +42,7 @@
 - `/actuator/prometheus` 包含服务名标签和 HTTP 请求指标。
 - `web-portal`：1 个测试通过，TypeScript 类型检查和 Vite 生产构建通过。
 - `web-admin`：1 个测试通过，TypeScript 类型检查和 Vite 生产构建通过。
+- 前端仓库已创建并推送到 GitHub，`main` 保存当前基线，后续开发使用 `codex/develop`。
 - 后端草稿 PR 可干净合并，当前没有配置 GitHub CI 检查。
 
 ## 已独立提交的大模块
@@ -64,11 +65,10 @@
 2. 验证 PostgreSQL 多数据库、Redis、MinIO、Elasticsearch 的 Compose 运行链路。
 3. 执行“登录、写文章、上传图片、提交审核、审核通过、搜索、评论”的浏览器端到端测试。
 4. 使用真实企业 OIDC Issuer、Client 和 Claims 做运行时联调。
-5. 推送前端：`enterprise-blog-frontend` 本地仓库尚未配置 GitHub remote。
 
 ## 后续验收顺序
 
-1. 用户提供或创建前端 GitHub 仓库后，将前端建立开发分支并推送。
+1. 后续前端功能提交到 `codex/develop`，通过 PR 合并到 `main`。
 2. 本机具备 Docker 后启动基础设施和全套服务，不直接部署生产环境。
 3. 执行端到端流程与风险场景测试，修复发现的问题。
 4. 更新草稿 PR 的最终验证记录，转为 Ready for review，再合并到 `main`。
