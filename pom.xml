@@ -20,6 +20,7 @@
     <module>review-service</module>
     <module>file-service</module>
     <module>search-service</module>
+    <module>comment-service</module>
   </modules>
 
   <properties>

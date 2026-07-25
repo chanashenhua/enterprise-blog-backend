@@ -165,6 +165,38 @@ SET title = EXCLUDED.title,
     tag_ids = EXCLUDED.tag_ids,
     created_by = EXCLUDED.created_by;
 
+INSERT INTO blog_comment (
+    id,
+    article_id,
+    parent_id,
+    author_id,
+    content,
+    status
+) VALUES
+    (
+        'c-demo-company-root',
+        'a-demo-company-published',
+        NULL,
+        'u-reader',
+        '这篇实践总结很有帮助，期待后续补充配置中心的细节。',
+        'ACTIVE'
+    ),
+    (
+        'c-demo-company-reply',
+        'a-demo-company-published',
+        'c-demo-company-root',
+        'u-author',
+        '收到，下一版会补充配置中心和灰度发布示例。',
+        'ACTIVE'
+    )
+ON CONFLICT (id) DO UPDATE
+SET article_id = EXCLUDED.article_id,
+    parent_id = EXCLUDED.parent_id,
+    author_id = EXCLUDED.author_id,
+    content = EXCLUDED.content,
+    status = EXCLUDED.status,
+    updated_at = CURRENT_TIMESTAMP;
+
 DELETE FROM article_visibility_target
 WHERE article_id IN ('a-demo-draft', 'a-demo-company-published', 'a-demo-team-review');
 

@@ -9,6 +9,10 @@ spring:
   cloud:
     gateway:
       routes:
+        - id: comment-service
+          uri: lb://comment-service
+          predicates:
+            - Path=/api/articles/*/comments,/api/articles/*/comments/**
         - id: article-service
           uri: lb://article-service
           predicates:
