@@ -31,11 +31,11 @@ public class JdbcArticleOutbox implements ArticleOutbox {
     }
 
     @Override
-    public void appendArticleEvents(ArticleMemoryRepository.StoredArticle article, List<DomainEvent> events) {
+    public void appendArticleEvents(StoredArticle article, List<DomainEvent> events) {
         append(events, article);
     }
 
-    private void append(List<DomainEvent> events, ArticleMemoryRepository.StoredArticle article) {
+    private void append(List<DomainEvent> events, StoredArticle article) {
         for (DomainEvent event : events) {
             jdbcTemplate.update(
                     """
@@ -52,9 +52,9 @@ public class JdbcArticleOutbox implements ArticleOutbox {
         }
     }
 
-    private static String payloadJson(DomainEvent event, ArticleMemoryRepository.StoredArticle storedArticle) {
+    private static String payloadJson(DomainEvent event, StoredArticle storedArticle) {
         try {
-            // 发布事件携带完整索引快照，调度器无需回查仍是内存实现的文章服务。
+            // 发布事件携带完整索引快照，调度器无需再次回查文章仓储。
             if (storedArticle == null || !"ArticlePublished".equals(event.type())) {
                 return OBJECT_MAPPER.writeValueAsString(Map.of(
                         "articleId", event.aggregateId(),

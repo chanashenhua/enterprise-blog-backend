@@ -26,6 +26,30 @@ docker compose ps
 Get-Content infra/postgres/seed-demo-data.sql | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U blog -d postgres
 ```
 
+### 不使用 Docker 的本机 PostgreSQL
+
+本机单库调试使用 `jdbc:postgresql://localhost:5432/postgres`。密码只通过当前终端环境变量传入，
+不要写入 Git。`V3` 迁移只在数据库尚无对应字段和 `article_tag` 表时执行一次；种子脚本可重复执行：
+
+```powershell
+$env:PGPASSWORD = Read-Host 'PostgreSQL password'
+psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
+  -f article-service/src/main/resources/db/migration/V3__persist_article_aggregate.sql
+psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
+  -f infra/postgres/seed-local-demo-data.sql
+Remove-Item Env:PGPASSWORD
+```
+
+启动文章服务时使用 `local` Profile，并通过 `POSTGRES_PASSWORD` 提供密码。
+`config-repo/article-service-local.yml` 会连接本机单库并关闭 Flyway，因为多个服务共用
+`public` schema 时不能共用一张 `flyway_schema_history`。
+
+本机种子脚本会建立三篇文章：
+
+- PostgreSQL 持久化草稿；
+- 全公司可见的已发布文章；
+- 搜索团队可见的待审核文章及对应审核单。
+
 ## 核心验收
 
 先在相邻的 `enterprise-blog-frontend` 仓库启动员工端与管理端，再执行以下流程。

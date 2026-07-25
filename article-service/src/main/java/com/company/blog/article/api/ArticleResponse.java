@@ -16,7 +16,7 @@ public record ArticleResponse(
         String renderedHtml,
         String plainText
 ) {
-    static ArticleResponse from(ArticleMemoryRepository.StoredArticle storedArticle) {
+    static ArticleResponse from(StoredArticle storedArticle) {
         Article article = storedArticle.article();
         ArticleContentProjection content = storedArticle.content();
         return new ArticleResponse(

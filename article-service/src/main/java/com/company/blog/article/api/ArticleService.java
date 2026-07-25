@@ -6,6 +6,7 @@ import com.company.blog.article.domain.ArticleStatus;
 import com.company.blog.article.domain.ArticleVisibilityType;
 import java.util.Locale;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -18,27 +19,49 @@ import org.springframework.web.server.ResponseStatusException;
  * {@link Article} 负责状态是否合法，外部服务客户端只负责各自的远程契约。</p>
  */
 public class ArticleService {
-    private final ArticleMemoryRepository repository;
+    private final ArticleRepository repository;
     private final TagValidationClient tagValidationClient;
     private final PermissionCheckClient permissionCheckClient;
-    private final ArticleOutbox articleOutbox;
+    private final ArticleTransactionService transactionService;
     private final ReviewPolicyClient reviewPolicyClient;
     private final ReviewTicketClient reviewTicketClient;
 
+    @Autowired
     public ArticleService(
-            ArticleMemoryRepository repository,
+            ArticleRepository repository,
             TagValidationClient tagValidationClient,
             PermissionCheckClient permissionCheckClient,
-            ArticleOutbox articleOutbox,
+            ArticleTransactionService transactionService,
             ReviewPolicyClient reviewPolicyClient,
             ReviewTicketClient reviewTicketClient
     ) {
         this.repository = repository;
         this.tagValidationClient = tagValidationClient;
         this.permissionCheckClient = permissionCheckClient;
-        this.articleOutbox = articleOutbox;
+        this.transactionService = transactionService;
         this.reviewPolicyClient = reviewPolicyClient;
         this.reviewTicketClient = reviewTicketClient;
+    }
+
+    /**
+     * 不启动 Spring 容器的单元测试入口，使用同一套事务内业务逻辑但不创建数据库事务代理。
+     */
+    public ArticleService(
+            ArticleRepository repository,
+            TagValidationClient tagValidationClient,
+            PermissionCheckClient permissionCheckClient,
+            ArticleOutbox articleOutbox,
+            ReviewPolicyClient reviewPolicyClient,
+            ReviewTicketClient reviewTicketClient
+    ) {
+        this(
+                repository,
+                tagValidationClient,
+                permissionCheckClient,
+                new ArticleTransactionService(repository, articleOutbox),
+                reviewPolicyClient,
+                reviewTicketClient
+        );
     }
 
     public ArticleResponse saveDraft(String authorId, SaveDraftRequest request) {
@@ -55,84 +78,60 @@ public class ArticleService {
         tagValidationClient.validate(request.tagIds());
         Article article = Article.draft(UUID.randomUUID().toString(), authorId, request.title());
         ArticleContentProjection content = ArticleContentProjection.from(request.contentJson());
-        ArticleMemoryRepository.StoredArticle storedArticle = new ArticleMemoryRepository.StoredArticle(
+        StoredArticle storedArticle = new StoredArticle(
                 article,
                 request.contentJson(),
                 content,
                 request.tagIds()
         );
-        repository.save(storedArticle);
-        return ArticleResponse.from(storedArticle);
+        return ArticleResponse.from(transactionService.saveDraft(storedArticle));
     }
 
     public ArticleResponse submitForPublish(String articleId, CallerContext callerContext, SubmitPublishRequest request) {
-        ArticleMemoryRepository.StoredArticle storedArticle = findStoredArticle(articleId);
+        StoredArticle storedArticle = findStoredArticle(articleId);
         Article article = storedArticle.article();
         permissionCheckClient.requirePublishAllowed(callerContext, article, request);
         ArticleVisibilityType visibilityType = parseVisibilityType(request.visibilityType());
         boolean reviewRequired = reviewPolicyClient.reviewRequired(request);
         // 全公司可见文章或不要求审核的范围可直接发布；其余情况先创建审核单。
         if (visibilityType == ArticleVisibilityType.COMPANY || !reviewRequired) {
-            synchronized (storedArticle) {
-                article.submitForPublish(visibilityType, request.targetOrgIds(), false);
-                articleOutbox.appendArticleEvents(storedArticle, article.pullEvents());
-                repository.save(storedArticle);
-                return ArticleResponse.from(storedArticle);
-            }
+            return ArticleResponse.from(transactionService.publish(
+                    articleId,
+                    visibilityType,
+                    request.targetOrgIds()
+            ));
         }
 
-        synchronized (storedArticle) {
-            article.requestReview(visibilityType, request.targetOrgIds());
-            repository.save(storedArticle);
-        }
-        reviewTicketClient.createTicket(article, request);
-        return ArticleResponse.from(storedArticle);
+        StoredArticle pendingArticle = transactionService.requestReview(
+                articleId,
+                visibilityType,
+                request.targetOrgIds()
+        );
+        reviewTicketClient.createTicket(pendingArticle.article(), request);
+        return ArticleResponse.from(pendingArticle);
     }
 
     public ArticleResponse approveFromReview(String articleId, String reviewTicketId, String reviewRequestId) {
-        return approveFromReview(findStoredArticle(articleId), reviewTicketId, reviewRequestId);
-    }
-
-    private ArticleResponse approveFromReview(
-            ArticleMemoryRepository.StoredArticle storedArticle,
-            String reviewTicketId,
-            String reviewRequestId
-    ) {
-        synchronized (storedArticle) {
-            Article article = storedArticle.article();
-            // 领域对象用审核请求 ID 判定回调是否过期，并保证同一回调只产生一次发布事件。
-            if (article.approveFromReview(reviewTicketId, reviewRequestId)) {
-                articleOutbox.appendArticleEvents(storedArticle, article.pullEvents());
-                repository.save(storedArticle);
-            }
-            return ArticleResponse.from(storedArticle);
-        }
+        return ArticleResponse.from(transactionService.approveFromReview(
+                articleId,
+                reviewTicketId,
+                reviewRequestId
+        ));
     }
 
     public ArticleResponse rejectFromReview(String articleId, String reviewTicketId, String reviewRequestId) {
-        return rejectFromReview(findStoredArticle(articleId), reviewTicketId, reviewRequestId);
-    }
-
-    private ArticleResponse rejectFromReview(
-            ArticleMemoryRepository.StoredArticle storedArticle,
-            String reviewTicketId,
-            String reviewRequestId
-    ) {
-        synchronized (storedArticle) {
-            Article article = storedArticle.article();
-            // 过期或重复的拒绝回调不改变当前文章，避免旧审核单覆盖一次新的提交。
-            if (article.rejectFromReview(reviewTicketId, reviewRequestId)) {
-                repository.save(storedArticle);
-            }
-            return ArticleResponse.from(storedArticle);
-        }
+        return ArticleResponse.from(transactionService.rejectFromReview(
+                articleId,
+                reviewTicketId,
+                reviewRequestId
+        ));
     }
 
     public ArticleResponse get(String articleId) {
         return ArticleResponse.from(findStoredArticle(articleId));
     }
 
-    private ArticleMemoryRepository.StoredArticle findStoredArticle(String articleId) {
+    private StoredArticle findStoredArticle(String articleId) {
         return repository.findById(articleId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Article not found"));
     }

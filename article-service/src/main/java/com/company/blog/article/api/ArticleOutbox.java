@@ -6,7 +6,7 @@ import java.util.List;
 public interface ArticleOutbox {
     void appendArticleEvents(List<DomainEvent> events);
 
-    default void appendArticleEvents(ArticleMemoryRepository.StoredArticle article, List<DomainEvent> events) {
+    default void appendArticleEvents(StoredArticle article, List<DomainEvent> events) {
         appendArticleEvents(events);
     }
 }
