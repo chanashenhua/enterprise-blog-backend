@@ -14,10 +14,12 @@ public record ArticleContentVersion(
         String renderedHtml,
         String plainText,
         Set<String> tagIds,
+        String categoryId,
         String createdBy,
         Instant createdAt
 ) {
     public ArticleContentVersion {
         tagIds = tagIds == null ? Set.of() : Set.copyOf(tagIds);
+        categoryId = categoryId == null || categoryId.isBlank() ? null : categoryId;
     }
 }

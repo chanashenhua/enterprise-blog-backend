@@ -36,7 +36,11 @@ spring:
         - id: tag-admin-service
           uri: lb://tag-service
           predicates:
-            - Path=/api/admin/tags/**
+            - Path=/api/admin/tags/**,/api/admin/categories/**
+        - id: taxonomy-service
+          uri: lb://tag-service
+          predicates:
+            - Path=/api/tags,/api/categories
 
 blog:
   mock-oidc:

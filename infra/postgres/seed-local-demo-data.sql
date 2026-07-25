@@ -35,19 +35,33 @@ INSERT INTO user_org_membership (user_id, department_id, team_id) VALUES
     ('u-reader', 'd-pay', 't-pay')
 ON CONFLICT DO NOTHING;
 
-INSERT INTO tag (id, name) VALUES
-    ('java', 'Java'),
-    ('spring-cloud', 'Spring Cloud'),
-    ('redis', 'Redis'),
-    ('postgresql', 'PostgreSQL'),
-    ('elasticsearch', 'Elasticsearch')
-ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
+INSERT INTO tag (id, name, active) VALUES
+    ('java', 'Java', TRUE),
+    ('spring-cloud', 'Spring Cloud', TRUE),
+    ('redis', 'Redis', TRUE),
+    ('postgresql', 'PostgreSQL', TRUE),
+    ('elasticsearch', 'Elasticsearch', TRUE)
+ON CONFLICT (id) DO UPDATE
+SET name = EXCLUDED.name,
+    active = TRUE,
+    updated_at = CURRENT_TIMESTAMP;
+
+INSERT INTO category (id, name, active) VALUES
+    ('architecture', '架构设计', TRUE),
+    ('engineering', '工程实践', TRUE),
+    ('database', '数据库', TRUE),
+    ('operations', '运维与稳定性', TRUE)
+ON CONFLICT (id) DO UPDATE
+SET name = EXCLUDED.name,
+    active = TRUE,
+    updated_at = CURRENT_TIMESTAMP;
 
 INSERT INTO article (
     id,
     author_id,
     title,
     status,
+    category_id,
     visibility_type,
     review_request_id,
     approved_by_review_ticket_id,
@@ -58,6 +72,7 @@ INSERT INTO article (
         'u-author',
         'PostgreSQL 文章持久化草稿',
         'DRAFT',
+        'database',
         NULL,
         NULL,
         NULL,
@@ -68,6 +83,7 @@ INSERT INTO article (
         'u-author',
         'Spring Cloud 内部博客实践',
         'PUBLISHED',
+        'engineering',
         'COMPANY',
         NULL,
         NULL,
@@ -78,6 +94,7 @@ INSERT INTO article (
         'u-author',
         '搜索团队索引优化方案',
         'PENDING_REVIEW',
+        'architecture',
         'TEAM',
         'rr-demo-team-search',
         NULL,
@@ -87,6 +104,7 @@ ON CONFLICT (id) DO UPDATE
 SET author_id = EXCLUDED.author_id,
     title = EXCLUDED.title,
     status = EXCLUDED.status,
+    category_id = EXCLUDED.category_id,
     visibility_type = EXCLUDED.visibility_type,
     review_request_id = EXCLUDED.review_request_id,
     approved_by_review_ticket_id = EXCLUDED.approved_by_review_ticket_id,
@@ -125,6 +143,7 @@ INSERT INTO article_content_version (
     rendered_html,
     plain_text,
     tag_ids,
+    category_id,
     created_by
 ) VALUES
     (
@@ -135,6 +154,7 @@ INSERT INTO article_content_version (
         '<p>这是一篇用于验证 PostgreSQL 持久化的草稿。</p>',
         '这是一篇用于验证 PostgreSQL 持久化的草稿。',
         'postgresql',
+        'database',
         'u-author'
     ),
     (
@@ -145,6 +165,7 @@ INSERT INTO article_content_version (
         '<p>介绍 Spring Cloud 在企业内部博客中的服务治理实践。</p>',
         '介绍 Spring Cloud 在企业内部博客中的服务治理实践。',
         'java,spring-cloud',
+        'engineering',
         'u-author'
     ),
     (
@@ -155,6 +176,7 @@ INSERT INTO article_content_version (
         '<p>仅搜索团队可见、等待审核的索引优化方案。</p>',
         '仅搜索团队可见、等待审核的索引优化方案。',
         'elasticsearch',
+        'architecture',
         'u-author'
     )
 ON CONFLICT (article_id, version_no) DO UPDATE
@@ -163,6 +185,7 @@ SET title = EXCLUDED.title,
     rendered_html = EXCLUDED.rendered_html,
     plain_text = EXCLUDED.plain_text,
     tag_ids = EXCLUDED.tag_ids,
+    category_id = EXCLUDED.category_id,
     created_by = EXCLUDED.created_by;
 
 INSERT INTO blog_comment (

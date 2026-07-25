@@ -76,6 +76,9 @@ public class ElasticsearchArticleSearchRepository implements ArticleSearchReposi
         node.put("summary", document.summary());
         node.put("plain_text", document.plainText());
         node.set("tags", objectMapper.valueToTree(document.tags()));
+        if (document.categoryId() != null) {
+            node.put("category_id", document.categoryId());
+        }
         node.put("author_id", document.authorId());
         node.put("author_name", document.authorName());
         node.put("visibility_type", document.visibilityType().toLowerCase());
@@ -94,6 +97,12 @@ public class ElasticsearchArticleSearchRepository implements ArticleSearchReposi
         ObjectNode bool = root.putObject("query").putObject("bool");
         ArrayNode filters = bool.putArray("filter");
         filters.addObject().putObject("term").put("status", "PUBLISHED");
+        if (request.categoryId() != null && !request.categoryId().isBlank()) {
+            filters.addObject().putObject("term").put("category_id", request.categoryId().trim());
+        }
+        if (request.tagId() != null && !request.tagId().isBlank()) {
+            filters.addObject().putObject("term").put("tags", request.tagId().trim());
+        }
         // 组织范围作为 ES 过滤条件，既减少返回量，也避免将其他团队文章作为候选带回应用层。
         ObjectNode visibilityBool = filters.addObject().putObject("bool");
         ArrayNode visibility = visibilityBool.putArray("should");
@@ -131,7 +140,8 @@ public class ElasticsearchArticleSearchRepository implements ArticleSearchReposi
                 if (visibilityFilter.isVisible(user, document) && permissionCheckClient.canRead(user, document)) {
                     items.add(new SearchArticleResponse.Article(
                             document.articleId(), document.title(), document.summary(), document.tags(),
-                            document.authorId(), document.authorName(), document.publishedAt(), document.updatedAt()
+                            document.categoryId(), document.authorId(), document.authorName(),
+                            document.publishedAt(), document.updatedAt()
                     ));
                 }
             }
@@ -144,11 +154,16 @@ public class ElasticsearchArticleSearchRepository implements ArticleSearchReposi
     private static ArticleSearchDocument documentFrom(JsonNode source) {
         return new ArticleSearchDocument(
                 source.path("article_id").asText(), source.path("title").asText(), source.path("summary").asText(),
-                source.path("plain_text").asText(), stringSet(source.path("tags")), source.path("author_id").asText(),
+                source.path("plain_text").asText(), stringSet(source.path("tags")),
+                nullableText(source.path("category_id")), source.path("author_id").asText(),
                 source.path("author_name").asText(), source.path("visibility_type").asText(),
                 stringSet(source.path("target_org_ids")), source.path("status").asText(),
                 Instant.parse(source.path("published_at").asText()), Instant.parse(source.path("updated_at").asText())
         );
+    }
+
+    private static String nullableText(JsonNode node) {
+        return node.isMissingNode() || node.isNull() || node.asText().isBlank() ? null : node.asText();
     }
 
     private static Set<String> stringSet(JsonNode node) {

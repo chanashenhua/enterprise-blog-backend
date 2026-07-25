@@ -40,20 +40,24 @@ class ArticleLifecycleTest {
     void editsListsWithdrawsRepublishesAndDeletesAnArticle() {
         String articleId = service.saveDraft(
                 "u-author",
-                new SaveDraftRequest("第一版", content("第一版正文"), Set.of("java"))
+                new SaveDraftRequest("第一版", content("第一版正文"), Set.of("java"), "engineering")
         ).id();
 
         ArticleResponse updated = service.updateDraft(
                 articleId,
                 author,
-                new UpdateDraftRequest("第二版", content("第二版正文"), Set.of("postgresql"))
+                new UpdateDraftRequest("第二版", content("第二版正文"), Set.of("postgresql"), "database")
         );
         assertThat(updated.title()).isEqualTo("第二版");
         assertThat(updated.plainText()).isEqualTo("第二版正文");
+        assertThat(updated.categoryId()).isEqualTo("database");
         assertThat(service.listMine(author)).extracting(ArticleResponse::id).containsExactly(articleId);
         assertThat(service.listVersions(articleId, author))
-                .extracting(version -> version.versionNo())
-                .containsExactly(1, 2);
+                .satisfies(versions -> {
+                    assertThat(versions).extracting(version -> version.versionNo()).containsExactly(1, 2);
+                    assertThat(versions).extracting(version -> version.categoryId())
+                            .containsExactly("engineering", "database");
+                });
 
         service.submitForPublish(
                 articleId,

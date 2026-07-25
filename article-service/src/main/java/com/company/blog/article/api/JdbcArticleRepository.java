@@ -28,7 +28,7 @@ public class JdbcArticleRepository implements ArticleRepository {
     private static final String SELECT_ARTICLE = """
             select id, author_id, title, status, visibility_type, review_request_id,
                    approved_by_review_ticket_id, rejected_by_review_ticket_id,
-                   created_at, updated_at
+                   category_id, created_at, updated_at
             from article
             where id = ?
             """;
@@ -47,7 +47,7 @@ public class JdbcArticleRepository implements ArticleRepository {
                         update article
                         set author_id = ?, title = ?, status = ?, visibility_type = ?,
                             review_request_id = ?, approved_by_review_ticket_id = ?,
-                            rejected_by_review_ticket_id = ?, created_at = ?, updated_at = ?
+                            rejected_by_review_ticket_id = ?, category_id = ?, created_at = ?, updated_at = ?
                         where id = ?
                         """,
                 article.authorId(),
@@ -57,6 +57,7 @@ public class JdbcArticleRepository implements ArticleRepository {
                 article.reviewRequestId(),
                 article.approvedByReviewTicketId(),
                 article.rejectedByReviewTicketId(),
+                storedArticle.categoryId(),
                 Timestamp.from(article.createdAt()),
                 Timestamp.from(article.updatedAt()),
                 article.id()
@@ -67,8 +68,8 @@ public class JdbcArticleRepository implements ArticleRepository {
                             insert into article
                                 (id, author_id, title, status, visibility_type, review_request_id,
                                  approved_by_review_ticket_id, rejected_by_review_ticket_id,
-                                 created_at, updated_at)
-                            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 category_id, created_at, updated_at)
+                            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """,
                     article.id(),
                     article.authorId(),
@@ -78,6 +79,7 @@ public class JdbcArticleRepository implements ArticleRepository {
                     article.reviewRequestId(),
                     article.approvedByReviewTicketId(),
                     article.rejectedByReviewTicketId(),
+                    storedArticle.categoryId(),
                     Timestamp.from(article.createdAt()),
                     Timestamp.from(article.updatedAt())
             );
@@ -132,8 +134,8 @@ public class JdbcArticleRepository implements ArticleRepository {
                 """
                         insert into article_content_version
                             (article_id, version_no, title, content_json, rendered_html,
-                             plain_text, tag_ids, created_by, created_at)
-                        values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             plain_text, tag_ids, category_id, created_by, created_at)
+                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                 storedArticle.article().id(),
                 versionNo,
@@ -142,6 +144,7 @@ public class JdbcArticleRepository implements ArticleRepository {
                 storedArticle.content().renderedHtml(),
                 storedArticle.content().plainText(),
                 commaSeparated(storedArticle.tagIds()),
+                storedArticle.categoryId(),
                 createdBy,
                 Timestamp.from(createdAt)
         );
@@ -153,6 +156,7 @@ public class JdbcArticleRepository implements ArticleRepository {
                 storedArticle.content().renderedHtml(),
                 storedArticle.content().plainText(),
                 storedArticle.tagIds(),
+                storedArticle.categoryId(),
                 createdBy,
                 createdAt
         );
@@ -163,7 +167,7 @@ public class JdbcArticleRepository implements ArticleRepository {
         return jdbcTemplate.query(
                 """
                         select article_id, version_no, title, content_json, rendered_html,
-                               plain_text, tag_ids, created_by, created_at
+                               plain_text, tag_ids, category_id, created_by, created_at
                         from article_content_version
                         where article_id = ?
                         order by version_no
@@ -176,6 +180,7 @@ public class JdbcArticleRepository implements ArticleRepository {
                         resultSet.getString("rendered_html"),
                         resultSet.getString("plain_text"),
                         commaSeparated(resultSet.getString("tag_ids")),
+                        resultSet.getString("category_id"),
                         resultSet.getString("created_by"),
                         resultSet.getTimestamp("created_at").toInstant()
                 ),
@@ -242,7 +247,8 @@ public class JdbcArticleRepository implements ArticleRepository {
                 article,
                 content.contentJson(),
                 new ArticleContentProjection(content.renderedHtml(), content.plainText()),
-                tagIds
+                tagIds,
+                row.categoryId()
         ));
     }
 
@@ -312,6 +318,7 @@ public class JdbcArticleRepository implements ArticleRepository {
                 resultSet.getString("review_request_id"),
                 resultSet.getString("approved_by_review_ticket_id"),
                 resultSet.getString("rejected_by_review_ticket_id"),
+                resultSet.getString("category_id"),
                 resultSet.getTimestamp("created_at").toInstant(),
                 resultSet.getTimestamp("updated_at").toInstant()
         );
@@ -348,6 +355,7 @@ public class JdbcArticleRepository implements ArticleRepository {
             String reviewRequestId,
             String approvedByReviewTicketId,
             String rejectedByReviewTicketId,
+            String categoryId,
             java.time.Instant createdAt,
             java.time.Instant updatedAt
     ) {

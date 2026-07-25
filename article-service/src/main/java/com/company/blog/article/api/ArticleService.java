@@ -70,13 +70,15 @@ public class ArticleService {
         validateDraft(request.title(), request.contentJson());
         // 标签由标签服务统一维护，保存前拒绝不存在的标签，避免产生不可检索的脏关联。
         tagValidationClient.validate(request.tagIds());
+        tagValidationClient.validateCategory(request.categoryId());
         Article article = Article.draft(UUID.randomUUID().toString(), authorId, request.title());
         ArticleContentProjection content = ArticleContentProjection.from(request.contentJson());
         StoredArticle storedArticle = new StoredArticle(
                 article,
                 request.contentJson(),
                 content,
-                request.tagIds()
+                request.tagIds(),
+                request.categoryId()
         );
         return ArticleResponse.from(transactionService.saveDraft(storedArticle, authorId));
     }
@@ -91,11 +93,13 @@ public class ArticleService {
         StoredArticle storedArticle = findStoredArticle(articleId);
         permissionCheckClient.requireEditAllowed(callerContext, storedArticle.article());
         tagValidationClient.validate(request.tagIds());
+        tagValidationClient.validateCategory(request.categoryId());
         return ArticleResponse.from(transactionService.updateDraft(
                 articleId,
                 request.title(),
                 request.contentJson(),
                 request.tagIds(),
+                request.categoryId(),
                 callerContext.userId()
         ));
     }

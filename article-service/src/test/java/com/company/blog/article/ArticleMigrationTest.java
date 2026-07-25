@@ -32,6 +32,8 @@ class ArticleMigrationTest {
         assertThat(tableExists(jdbc, "DOMAIN_EVENT")).isTrue();
         assertThat(columnExists(jdbc, "ARTICLE", "VISIBILITY_TYPE")).isTrue();
         assertThat(columnExists(jdbc, "ARTICLE", "REVIEW_REQUEST_ID")).isTrue();
+        assertThat(columnExists(jdbc, "ARTICLE", "CATEGORY_ID")).isTrue();
+        assertThat(columnExists(jdbc, "ARTICLE_CONTENT_VERSION", "CATEGORY_ID")).isTrue();
     }
 
     private static boolean tableExists(JdbcTemplate jdbc, String tableName) {

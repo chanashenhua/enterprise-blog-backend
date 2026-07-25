@@ -41,7 +41,8 @@ class JdbcArticleRepositoryTest {
                 article,
                 contentJson,
                 ArticleContentProjection.from(contentJson),
-                Set.of("postgresql", "java")
+                Set.of("postgresql", "java"),
+                "engineering"
         ));
         firstRepository.appendContentVersion(
                 firstRepository.findById("a-restart").orElseThrow(),
@@ -56,6 +57,7 @@ class JdbcArticleRepositoryTest {
         assertThat(restored.article().visibilityTargetIds()).containsExactly("t-search");
         assertThat(restored.article().reviewRequestId()).isEqualTo(article.reviewRequestId());
         assertThat(restored.tagIds()).containsExactlyInAnyOrder("postgresql", "java");
+        assertThat(restored.categoryId()).isEqualTo("engineering");
         assertThat(restored.contentJson()).isEqualTo(contentJson);
         assertThat(restored.content().plainText()).isEqualTo("持久化正文");
         assertThat(restored.article().createdAt())
@@ -68,6 +70,7 @@ class JdbcArticleRepositoryTest {
                     assertThat(version.versionNo()).isEqualTo(1);
                     assertThat(version.title()).isEqualTo("重启后仍可读取");
                     assertThat(version.tagIds()).containsExactlyInAnyOrder("postgresql", "java");
+                    assertThat(version.categoryId()).isEqualTo("engineering");
                 });
     }
 }

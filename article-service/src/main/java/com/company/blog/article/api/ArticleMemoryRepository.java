@@ -59,6 +59,7 @@ public class ArticleMemoryRepository implements ArticleRepository {
                 storedArticle.content().renderedHtml(),
                 storedArticle.content().plainText(),
                 storedArticle.tagIds(),
+                storedArticle.categoryId(),
                 createdBy,
                 Instant.now()
         );

@@ -29,7 +29,8 @@ Get-Content infra/postgres/seed-demo-data.sql | docker compose exec -T postgres 
 ### 不使用 Docker 的本机 PostgreSQL
 
 本机单库调试使用 `jdbc:postgresql://localhost:5432/postgres`。密码只通过当前终端环境变量传入，
-不要写入 Git。文章服务的 `V3`、`V4` 与评论服务的 `V1` 迁移只在数据库尚无对应结构时各执行一次；
+不要写入 Git。文章服务的 `V3`～`V5`、标签服务的 `V3` 与评论服务的 `V1` 迁移只在数据库
+尚无对应结构时各执行一次；
 种子脚本可重复执行：
 
 ```powershell
@@ -38,6 +39,10 @@ psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
   -f article-service/src/main/resources/db/migration/V3__persist_article_aggregate.sql
 psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
   -f article-service/src/main/resources/db/migration/V4__article_content_versions.sql
+psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
+  -f tag-service/src/main/resources/db/migration/V3__managed_taxonomy.sql
+psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
+  -f article-service/src/main/resources/db/migration/V5__article_category.sql
 psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
   -f comment-service/src/main/resources/db/migration/V1__comments.sql
 psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `

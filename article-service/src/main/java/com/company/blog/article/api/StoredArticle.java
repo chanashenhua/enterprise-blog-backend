@@ -12,12 +12,23 @@ public record StoredArticle(
         Article article,
         String contentJson,
         ArticleContentProjection content,
-        Set<String> tagIds
+        Set<String> tagIds,
+        String categoryId
 ) {
     public StoredArticle {
         Objects.requireNonNull(article, "article must not be null");
         Objects.requireNonNull(contentJson, "contentJson must not be null");
         Objects.requireNonNull(content, "content must not be null");
         tagIds = tagIds == null ? Set.of() : Set.copyOf(tagIds);
+        categoryId = categoryId == null || categoryId.isBlank() ? null : categoryId;
+    }
+
+    public StoredArticle(
+            Article article,
+            String contentJson,
+            ArticleContentProjection content,
+            Set<String> tagIds
+    ) {
+        this(article, contentJson, content, tagIds, null);
     }
 }

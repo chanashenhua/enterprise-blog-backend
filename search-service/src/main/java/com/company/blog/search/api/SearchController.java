@@ -33,11 +33,13 @@ public class SearchController {
     public SearchArticleResponse search(
             @RequestHeader HttpHeaders headers,
             @RequestParam(value = "q", required = false) String query,
+            @RequestParam(value = "categoryId", required = false) String categoryId,
+            @RequestParam(value = "tagId", required = false) String tagId,
             @RequestParam(value = "page", required = false) Integer page,
             @RequestParam(value = "size", required = false) Integer size
     ) {
         UserContext user = userContext(headers);
-        return searchService.search(user, new SearchArticleRequest(query, page, size));
+        return searchService.search(user, new SearchArticleRequest(query, categoryId, tagId, page, size));
     }
 
     private static UserContext userContext(HttpHeaders headers) {

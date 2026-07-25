@@ -9,6 +9,7 @@ public record IndexArticleRequest(
         String summary,
         String plainText,
         Set<String> tags,
+        String categoryId,
         String authorId,
         String authorName,
         String visibilityType,

@@ -30,4 +30,18 @@ public class HttpTagValidationClient implements TagValidationClient {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown article tags");
         }
     }
+
+    @Override
+    public void validateCategory(String categoryId) {
+        if (categoryId == null || categoryId.isBlank()) {
+            return;
+        }
+        CatalogValidationResponse response = restClient.get()
+                .uri("/internal/categories/{id}/validate", categoryId)
+                .retrieve()
+                .body(CatalogValidationResponse.class);
+        if (response == null || !response.valid()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown or inactive article category");
+        }
+    }
 }

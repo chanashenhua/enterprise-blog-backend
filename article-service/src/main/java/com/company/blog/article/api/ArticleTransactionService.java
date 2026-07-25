@@ -43,6 +43,7 @@ public class ArticleTransactionService {
             String title,
             String contentJson,
             Set<String> tagIds,
+            String categoryId,
             String updatedBy
     ) {
         StoredArticle current = findForUpdate(articleId);
@@ -51,7 +52,8 @@ public class ArticleTransactionService {
                 current.article(),
                 contentJson,
                 ArticleContentProjection.from(contentJson),
-                tagIds
+                tagIds,
+                categoryId
         );
         repository.save(updated);
         repository.appendContentVersion(updated, updatedBy);
