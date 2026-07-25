@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,7 @@ public class CatalogService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "catalog-list", key = "#p0.name() + ':' + #p1")
     public List<CatalogItemResponse> list(CatalogType type, boolean includeInactive) {
         return repository.findAll(type, includeInactive).stream()
                 .map(CatalogItemResponse::from)
@@ -30,6 +33,7 @@ public class CatalogService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {"catalog-list", "tag-validation", "category-validation"}, allEntries = true)
     public CatalogItemResponse create(CatalogType type, CatalogItemRequest request) {
         String id = requireId(request == null ? null : request.id());
         String name = requireName(request == null ? null : request.name());
@@ -41,6 +45,7 @@ public class CatalogService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {"catalog-list", "tag-validation", "category-validation"}, allEntries = true)
     public CatalogItemResponse update(CatalogType type, String id, CatalogItemRequest request) {
         String validId = requireId(id);
         String name = requireName(request == null ? null : request.name());
@@ -54,12 +59,14 @@ public class CatalogService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {"catalog-list", "tag-validation", "category-validation"}, allEntries = true)
     public void deactivate(CatalogType type, String id) {
         repository.deactivate(type, requireId(id))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Catalog item not found"));
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "tag-validation", key = "#p0 == null ? 'empty' : #p0.toString()")
     public TagValidationResponse validateTags(List<String> ids) {
         LinkedHashSet<String> requested = new LinkedHashSet<>();
         if (ids != null) {
@@ -77,6 +84,7 @@ public class CatalogService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "category-validation", key = "#p0 == null ? 'empty' : #p0")
     public CatalogValidationResponse validateCategory(String id) {
         if (id == null || id.isBlank()) {
             return new CatalogValidationResponse(true);

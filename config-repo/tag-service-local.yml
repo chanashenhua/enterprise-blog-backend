@@ -10,12 +10,17 @@ spring:
     password: ${POSTGRES_PASSWORD}
   flyway:
     enabled: false
+  cache:
+    type: simple
 
 eureka:
   client:
     enabled: false
 
 management:
+  health:
+    redis:
+      enabled: false
   endpoints:
     web:
       exposure:
