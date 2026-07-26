@@ -1,10 +1,13 @@
 package com.company.blog.gateway.security;
 
+import java.util.ArrayList;
+import java.util.function.Consumer;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -24,9 +27,10 @@ public class TrustedUserContextHeaderFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        ServerHttpRequest sanitizedRequest = exchange.getRequest().mutate()
-                .headers(TrustedUserContextHeaderFilter::removeTrustedHeaders)
-                .build();
+        ServerHttpRequest sanitizedRequest = copyWithMutableHeaders(
+                exchange.getRequest(),
+                TrustedUserContextHeaderFilter::removeTrustedHeaders
+        );
         return chain.filter(exchange.mutate().request(sanitizedRequest).build());
     }
 
@@ -40,5 +44,24 @@ public class TrustedUserContextHeaderFilter implements GlobalFilter, Ordered {
         headers.remove(USER_ROLES_HEADER);
         headers.remove(DEPARTMENT_IDS_HEADER);
         headers.remove(TEAM_IDS_HEADER);
+    }
+
+    static ServerHttpRequest copyWithMutableHeaders(
+            ServerHttpRequest request,
+            Consumer<HttpHeaders> headerCustomizer
+    ) {
+        HttpHeaders mutableHeaders = new HttpHeaders();
+        request.getHeaders().forEach((name, values) ->
+                mutableHeaders.put(name, new ArrayList<>(values))
+        );
+        headerCustomizer.accept(mutableHeaders);
+        HttpHeaders readOnlyHeaders = HttpHeaders.readOnlyHttpHeaders(mutableHeaders);
+
+        return new ServerHttpRequestDecorator(request) {
+            @Override
+            public HttpHeaders getHeaders() {
+                return readOnlyHeaders;
+            }
+        };
     }
 }

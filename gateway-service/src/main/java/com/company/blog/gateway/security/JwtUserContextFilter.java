@@ -72,8 +72,9 @@ public class JwtUserContextFilter implements GlobalFilter, Ordered {
                 .filter(value -> !value.isBlank())
                 .orElseGet(() -> UUID.randomUUID().toString());
 
-        ServerHttpRequest request = exchange.getRequest().mutate()
-                .headers(headers -> {
+        ServerHttpRequest request = TrustedUserContextHeaderFilter.copyWithMutableHeaders(
+                exchange.getRequest(),
+                headers -> {
                     TrustedUserContextHeaderFilter.removeTrustedHeaders(headers);
                     removeMockHeaders(headers);
                     headers.set(TrustedUserContextHeaderFilter.USER_ID_HEADER, userId);
@@ -82,8 +83,8 @@ public class JwtUserContextFilter implements GlobalFilter, Ordered {
                     setOrRemove(headers, TrustedUserContextHeaderFilter.TEAM_IDS_HEADER, teams);
                     headers.set(TRACE_ID_HEADER, traceId);
                     headers.remove(HttpHeaders.AUTHORIZATION);
-                })
-                .build();
+                }
+        );
         return chain.filter(exchange.mutate().request(request).build());
     }
 
