@@ -9,6 +9,10 @@ spring:
   cloud:
     gateway:
       routes:
+        - id: comment-service
+          uri: lb://comment-service
+          predicates:
+            - Path=/api/articles/*/comments,/api/articles/*/comments/**
         - id: article-service
           uri: lb://article-service
           predicates:
@@ -32,7 +36,11 @@ spring:
         - id: tag-admin-service
           uri: lb://tag-service
           predicates:
-            - Path=/api/admin/tags/**
+            - Path=/api/admin/tags/**,/api/admin/categories/**
+        - id: taxonomy-service
+          uri: lb://tag-service
+          predicates:
+            - Path=/api/tags,/api/categories
 
 blog:
   mock-oidc:
@@ -47,7 +55,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   endpoint:
     health:
       probes:

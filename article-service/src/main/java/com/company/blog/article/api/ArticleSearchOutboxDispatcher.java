@@ -36,14 +36,25 @@ public class ArticleSearchOutboxDispatcher {
     /** 每轮限量拉取，避免大量积压事件占满数据库连接或压垮搜索服务。 */
     public void deliverPending() {
         List<Map<String, Object>> events = jdbcTemplate.queryForList(
-                "select id, payload_json from domain_event where event_type = 'ArticlePublished' and status = 'PENDING' order by created_at limit ?",
+                """
+                        select id, aggregate_id, event_type, payload_json
+                        from domain_event
+                        where event_type in ('ArticlePublished', 'ArticleWithdrawn', 'ArticleDeleted')
+                          and status = 'PENDING'
+                        order by created_at
+                        limit ?
+                        """,
                 batchSize
         );
         for (Map<String, Object> event : events) {
             String eventId = (String) event.get("id");
             try {
                 // 先完成远程写入，再改变本地状态，保证失败时仍可被下一轮重新投递。
-                searchIndexClient.index((String) event.get("payload_json"));
+                if ("ArticlePublished".equals(event.get("event_type"))) {
+                    searchIndexClient.index((String) event.get("payload_json"));
+                } else {
+                    searchIndexClient.delete((String) event.get("aggregate_id"));
+                }
                 jdbcTemplate.update(
                         "update domain_event set status = 'DELIVERED', updated_at = current_timestamp where id = ? and status = 'PENDING'",
                         eventId

@@ -26,5 +26,7 @@ class TagMigrationTest {
         assertThat(jdbc.queryForObject("select count(*) from tag", Integer.class)).isEqualTo(5);
         assertThat(jdbc.queryForObject("select name from tag where id = 'elasticsearch'", String.class))
                 .isEqualTo("Elasticsearch");
+        assertThat(jdbc.queryForObject("select count(*) from category", Integer.class)).isEqualTo(4);
+        assertThat(jdbc.queryForObject("select active from tag where id = 'java'", Boolean.class)).isTrue();
     }
 }

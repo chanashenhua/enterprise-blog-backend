@@ -1,0 +1,31 @@
+# 本地单库调试使用已经初始化好的 public schema，因此关闭自动迁移。
+# 新增迁移需要先按 docs/api/local-demo.md 的说明手动应用，避免多个服务共用同一
+# flyway_schema_history 表而相互干扰。
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD}
+  flyway:
+    enabled: false
+
+blog:
+  services:
+    permission-service-url: http://localhost:8083
+    tag-service-url: http://localhost:8085
+    review-service-url: http://localhost:8086
+    search-service-url: http://localhost:8088
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+management:
+  metrics:
+    tags:
+      application: ${spring.application.name:article-service}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus

@@ -12,11 +12,12 @@ public record ArticleResponse(
         String visibilityType,
         Set<String> visibilityTargetIds,
         Set<String> tagIds,
+        String categoryId,
         String contentJson,
         String renderedHtml,
         String plainText
 ) {
-    static ArticleResponse from(ArticleMemoryRepository.StoredArticle storedArticle) {
+    static ArticleResponse from(StoredArticle storedArticle) {
         Article article = storedArticle.article();
         ArticleContentProjection content = storedArticle.content();
         return new ArticleResponse(
@@ -27,6 +28,7 @@ public record ArticleResponse(
                 article.visibilityType() == null ? null : article.visibilityType().name(),
                 article.visibilityTargetIds(),
                 storedArticle.tagIds(),
+                storedArticle.categoryId(),
                 storedArticle.contentJson(),
                 content.renderedHtml(),
                 content.plainText()

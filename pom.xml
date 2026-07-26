@@ -20,6 +20,7 @@
     <module>review-service</module>
     <module>file-service</module>
     <module>search-service</module>
+    <module>comment-service</module>
   </modules>
 
   <properties>
@@ -47,6 +48,14 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+  </dependencies>
 
   <build>
     <pluginManagement>

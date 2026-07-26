@@ -6,6 +6,7 @@ import com.company.blog.article.api.ArticleSearchIndexClient;
 import com.company.blog.article.api.ArticleSearchOutboxDispatcher;
 import com.company.blog.article.api.JdbcArticleOutbox;
 import com.company.blog.article.domain.DomainEvent;
+import java.util.ArrayList;
 import java.util.List;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,35 @@ class ArticleSearchOutboxDispatcherTest {
         dispatcher.deliverPending();
 
         assertThat(jdbc.queryForObject("select status from domain_event", String.class)).isEqualTo("DELIVERED");
+    }
+
+    @Test
+    void removesSearchDocumentForWithdrawAndDeleteEvents() {
+        JdbcTemplate jdbc = migratedJdbc("search_dispatcher_delete");
+        new JdbcArticleOutbox(jdbc).appendArticleEvents(List.of(
+                DomainEvent.articleWithdrawn("a-withdrawn"),
+                DomainEvent.articleDeleted("a-deleted")
+        ));
+        List<String> deletedIds = new ArrayList<>();
+        ArticleSearchIndexClient client = new ArticleSearchIndexClient() {
+            @Override
+            public void index(String payloadJson) {
+            }
+
+            @Override
+            public void delete(String articleId) {
+                deletedIds.add(articleId);
+            }
+        };
+        ArticleSearchOutboxDispatcher dispatcher = new ArticleSearchOutboxDispatcher(jdbc, client, 20, 5);
+
+        dispatcher.deliverPending();
+
+        assertThat(deletedIds).containsExactly("a-withdrawn", "a-deleted");
+        assertThat(jdbc.queryForObject(
+                "select count(*) from domain_event where status = 'DELIVERED'",
+                Integer.class
+        )).isEqualTo(2);
     }
 
     private static JdbcTemplate migratedJdbc(String name) {

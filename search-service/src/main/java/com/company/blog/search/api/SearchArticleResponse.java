@@ -14,6 +14,7 @@ public record SearchArticleResponse(List<Article> items, long total, int page, i
             String title,
             String summary,
             Set<String> tags,
+            String categoryId,
             String authorId,
             String authorName,
             Instant publishedAt,

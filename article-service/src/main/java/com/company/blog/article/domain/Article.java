@@ -29,17 +29,128 @@ public final class Article {
     private final List<DomainEvent> events = new ArrayList<>();
 
     private Article(String id, String authorId, String title) {
+        this(
+                id,
+                authorId,
+                title,
+                ArticleStatus.DRAFT,
+                null,
+                Set.of(),
+                null,
+                null,
+                null,
+                Instant.now(),
+                null
+        );
+        this.updatedAt = this.createdAt;
+    }
+
+    private Article(
+            String id,
+            String authorId,
+            String title,
+            ArticleStatus status,
+            ArticleVisibilityType visibilityType,
+            Set<String> visibilityTargetIds,
+            String reviewRequestId,
+            String approvedByReviewTicketId,
+            String rejectedByReviewTicketId,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
         this.id = requireText(id, "id");
         this.authorId = requireText(authorId, "authorId");
         this.title = requireText(title, "title");
-        this.status = ArticleStatus.DRAFT;
-        this.createdAt = Instant.now();
-        this.updatedAt = this.createdAt;
-        this.visibilityTargetIds = Set.of();
+        this.status = Objects.requireNonNull(status, "status must not be null");
+        this.visibilityType = visibilityType;
+        this.visibilityTargetIds = Set.copyOf(
+                visibilityTargetIds == null ? Set.of() : new HashSet<>(visibilityTargetIds)
+        );
+        this.reviewRequestId = reviewRequestId;
+        this.approvedByReviewTicketId = approvedByReviewTicketId;
+        this.rejectedByReviewTicketId = rejectedByReviewTicketId;
+        this.createdAt = Objects.requireNonNull(createdAt, "createdAt must not be null");
+        this.updatedAt = updatedAt;
     }
 
     public static Article draft(String id, String authorId, String title) {
         return new Article(id, authorId, title);
+    }
+
+    /**
+     * 从持久化快照恢复文章，不触发新的领域事件。
+     */
+    public static Article rehydrate(
+            String id,
+            String authorId,
+            String title,
+            ArticleStatus status,
+            ArticleVisibilityType visibilityType,
+            Set<String> visibilityTargetIds,
+            String reviewRequestId,
+            String approvedByReviewTicketId,
+            String rejectedByReviewTicketId,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+        Article article = new Article(
+                id,
+                authorId,
+                title,
+                status,
+                visibilityType,
+                visibilityTargetIds,
+                reviewRequestId,
+                approvedByReviewTicketId,
+                rejectedByReviewTicketId,
+                createdAt,
+                Objects.requireNonNull(updatedAt, "updatedAt must not be null")
+        );
+        if (visibilityType != null) {
+            article.validateVisibilityTargets();
+        }
+        return article;
+    }
+
+    /**
+     * 修改草稿标题。撤回的文章在首次修改时重新进入草稿状态，之后可再次提交发布。
+     */
+    public void updateDraft(String title) {
+        if (status != ArticleStatus.DRAFT && status != ArticleStatus.WITHDRAWN) {
+            throw new IllegalStateException("Only draft or withdrawn articles can be edited");
+        }
+        this.title = requireText(title, "title");
+        if (status == ArticleStatus.WITHDRAWN) {
+            this.status = ArticleStatus.DRAFT;
+            this.visibilityType = null;
+            this.visibilityTargetIds = Set.of();
+            this.reviewRequestId = null;
+            this.approvedByReviewTicketId = null;
+            this.rejectedByReviewTicketId = null;
+        }
+        this.updatedAt = Instant.now();
+    }
+
+    public void withdraw() {
+        if (status != ArticleStatus.PUBLISHED) {
+            throw new IllegalStateException("Only published articles can be withdrawn");
+        }
+        this.status = ArticleStatus.WITHDRAWN;
+        this.events.add(DomainEvent.articleWithdrawn(id));
+        this.updatedAt = Instant.now();
+    }
+
+    public boolean delete() {
+        if (status == ArticleStatus.DELETED) {
+            return false;
+        }
+        if (status == ArticleStatus.PENDING_REVIEW) {
+            throw new IllegalStateException("Pending review articles cannot be deleted");
+        }
+        this.status = ArticleStatus.DELETED;
+        this.events.add(DomainEvent.articleDeleted(id));
+        this.updatedAt = Instant.now();
+        return true;
     }
 
     public void submitForPublish(
@@ -174,6 +285,14 @@ public final class Article {
 
     public String reviewRequestId() {
         return reviewRequestId;
+    }
+
+    public String approvedByReviewTicketId() {
+        return approvedByReviewTicketId;
+    }
+
+    public String rejectedByReviewTicketId() {
+        return rejectedByReviewTicketId;
     }
 
     public Instant createdAt() {

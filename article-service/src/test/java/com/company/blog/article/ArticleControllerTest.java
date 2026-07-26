@@ -85,7 +85,9 @@ class ArticleControllerTest {
         assertThat(articleOutbox.events).extracting(DomainEvent::type).containsExactly("ArticlePublished");
         assertThat(reviewTicketClient.ticketRequests).isEmpty();
 
-        mvc.perform(get("/api/articles/{articleId}", articleId))
+        mvc.perform(get("/api/articles/{articleId}", articleId)
+                        .header("X-User-Id", "u-reader")
+                        .header("X-User-Roles", "READER"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(articleId))
                 .andExpect(jsonPath("$.status").value("PUBLISHED"))

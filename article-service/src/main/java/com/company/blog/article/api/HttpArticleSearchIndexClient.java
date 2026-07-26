@@ -28,4 +28,13 @@ public class HttpArticleSearchIndexClient implements ArticleSearchIndexClient {
                 .retrieve()
                 .toBodilessEntity();
     }
+
+    @Override
+    public void delete(String articleId) {
+        restClient.delete()
+                .uri("/internal/search/articles/{articleId}", articleId)
+                .header("X-Internal-Token", token)
+                .retrieve()
+                .toBodilessEntity();
+    }
 }

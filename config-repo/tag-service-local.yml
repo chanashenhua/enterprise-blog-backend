@@ -1,0 +1,30 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: tag-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: postgres
+    password: ${POSTGRES_PASSWORD}
+  flyway:
+    enabled: false
+  cache:
+    type: simple
+
+eureka:
+  client:
+    enabled: false
+
+management:
+  metrics:
+    tags:
+      application: ${spring.application.name:tag-service}
+  health:
+    redis:
+      enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus

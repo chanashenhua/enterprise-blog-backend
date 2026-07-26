@@ -31,11 +31,11 @@ public class JdbcArticleOutbox implements ArticleOutbox {
     }
 
     @Override
-    public void appendArticleEvents(ArticleMemoryRepository.StoredArticle article, List<DomainEvent> events) {
+    public void appendArticleEvents(StoredArticle article, List<DomainEvent> events) {
         append(events, article);
     }
 
-    private void append(List<DomainEvent> events, ArticleMemoryRepository.StoredArticle article) {
+    private void append(List<DomainEvent> events, StoredArticle article) {
         for (DomainEvent event : events) {
             jdbcTemplate.update(
                     """
@@ -52,9 +52,9 @@ public class JdbcArticleOutbox implements ArticleOutbox {
         }
     }
 
-    private static String payloadJson(DomainEvent event, ArticleMemoryRepository.StoredArticle storedArticle) {
+    private static String payloadJson(DomainEvent event, StoredArticle storedArticle) {
         try {
-            // 发布事件携带完整索引快照，调度器无需回查仍是内存实现的文章服务。
+            // 发布事件携带完整索引快照，调度器无需再次回查文章仓储。
             if (storedArticle == null || !"ArticlePublished".equals(event.type())) {
                 return OBJECT_MAPPER.writeValueAsString(Map.of(
                         "articleId", event.aggregateId(),
@@ -62,20 +62,21 @@ public class JdbcArticleOutbox implements ArticleOutbox {
                         "occurredAt", event.occurredAt().toString()
                 ));
             }
-            return OBJECT_MAPPER.writeValueAsString(Map.ofEntries(
-                    Map.entry("articleId", event.aggregateId()),
-                    Map.entry("title", storedArticle.article().title()),
-                    Map.entry("summary", summary(storedArticle.content().plainText())),
-                    Map.entry("plainText", storedArticle.content().plainText()),
-                    Map.entry("tags", storedArticle.tagIds()),
-                    Map.entry("authorId", storedArticle.article().authorId()),
-                    Map.entry("authorName", storedArticle.article().authorId()),
-                    Map.entry("visibilityType", storedArticle.article().visibilityType().name()),
-                    Map.entry("targetOrgIds", storedArticle.article().visibilityTargetIds()),
-                    Map.entry("status", storedArticle.article().status().name()),
-                    Map.entry("publishedAt", event.occurredAt().toString()),
-                    Map.entry("updatedAt", storedArticle.article().updatedAt().toString())
-            ));
+            Map<String, Object> payload = new java.util.LinkedHashMap<>();
+            payload.put("articleId", event.aggregateId());
+            payload.put("title", storedArticle.article().title());
+            payload.put("summary", summary(storedArticle.content().plainText()));
+            payload.put("plainText", storedArticle.content().plainText());
+            payload.put("tags", storedArticle.tagIds());
+            payload.put("categoryId", storedArticle.categoryId());
+            payload.put("authorId", storedArticle.article().authorId());
+            payload.put("authorName", storedArticle.article().authorId());
+            payload.put("visibilityType", storedArticle.article().visibilityType().name());
+            payload.put("targetOrgIds", storedArticle.article().visibilityTargetIds());
+            payload.put("status", storedArticle.article().status().name());
+            payload.put("publishedAt", event.occurredAt().toString());
+            payload.put("updatedAt", storedArticle.article().updatedAt().toString());
+            return OBJECT_MAPPER.writeValueAsString(payload);
         } catch (Exception ex) {
             throw new IllegalStateException("Unable to serialize domain event", ex);
         }
