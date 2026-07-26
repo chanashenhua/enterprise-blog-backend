@@ -44,8 +44,8 @@ class CommentServiceTest {
         assertThat(root.content()).isEqualTo("First comment");
         assertThat(edited.content()).isEqualTo("Updated reply");
         assertThat(thread).hasSize(2);
-        assertThat(thread.getFirst().deleted()).isTrue();
-        assertThat(thread.getFirst().content()).isNull();
+        assertThat(thread.get(0).deleted()).isTrue();
+        assertThat(thread.get(0).content()).isNull();
         assertThat(thread.get(1).parentId()).isEqualTo(root.id());
     }
 
