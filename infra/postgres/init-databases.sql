@@ -8,3 +8,4 @@ CREATE DATABASE file_db;
 CREATE DATABASE search_db;
 CREATE DATABASE comment_db;
 CREATE DATABASE stats_db;
+CREATE DATABASE notification_db;

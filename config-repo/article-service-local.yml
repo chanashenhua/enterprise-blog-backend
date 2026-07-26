@@ -15,6 +15,7 @@ blog:
     tag-service-url: http://localhost:8085
     review-service-url: http://localhost:8086
     search-service-url: http://localhost:8088
+    notification-service-url: http://localhost:8091
 
 eureka:
   client:

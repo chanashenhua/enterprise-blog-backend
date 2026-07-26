@@ -1,27 +1,19 @@
 server:
-  port: 8089
+  port: 8091
 
 spring:
   application:
-    name: comment-service
+    name: notification-service
   datasource:
-    url: jdbc:postgresql://postgres:5432/comment_db
+    url: jdbc:postgresql://postgres:5432/notification_db
     username: ${POSTGRES_USER:blog}
     password: ${POSTGRES_PASSWORD:blog}
   flyway:
     enabled: true
 
 blog:
-  services:
-    article-service-url: http://article-service:8084
-    notification-service-url: http://notification-service:8091
   internal:
-    notification-token: ${INTERNAL_NOTIFICATION_TOKEN:local-notification-token}
-  outbox:
-    notification:
-      batch-size: 20
-      max-retries: 5
-      fixed-delay-ms: 5000
+    notification-token: ${INTERNAL_NOTIFICATION_TOKEN}
 
 eureka:
   client:

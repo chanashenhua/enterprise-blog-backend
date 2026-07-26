@@ -9,4 +9,12 @@ public interface ArticleOutbox {
     default void appendArticleEvents(StoredArticle article, List<DomainEvent> events) {
         appendArticleEvents(events);
     }
+
+    default void appendAuthorNotification(
+            StoredArticle article,
+            String eventType,
+            String title,
+            String content
+    ) {
+    }
 }

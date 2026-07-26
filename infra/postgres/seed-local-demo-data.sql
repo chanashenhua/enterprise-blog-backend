@@ -274,3 +274,57 @@ INSERT INTO article_interaction (article_id, user_id, interaction_type) VALUES
     ('a-demo-company-published', 'u-author', 'FAVORITE'),
     ('a-demo-company-published', 'u-reader', 'FAVORITE')
 ON CONFLICT (article_id, user_id, interaction_type) DO NOTHING;
+
+INSERT INTO user_notification (
+    id,
+    event_id,
+    recipient_user_id,
+    notification_type,
+    title,
+    content,
+    resource_type,
+    resource_id,
+    read_at,
+    created_at
+) VALUES
+    (
+        'n-demo-review-approved',
+        'demo-review-approved',
+        'u-author',
+        'REVIEW_APPROVED',
+        '文章审核已通过',
+        '《Spring Cloud 内部博客实践》已通过审核并发布。',
+        'ARTICLE',
+        'a-demo-company-published',
+        NULL,
+        CURRENT_TIMESTAMP - INTERVAL '20 minutes'
+    ),
+    (
+        'n-demo-review-rejected',
+        'demo-review-rejected',
+        'u-author',
+        'REVIEW_REJECTED',
+        '文章审核未通过',
+        '演示文章已退回草稿，请修改后重新提交。',
+        'ARTICLE',
+        'a-demo-draft',
+        CURRENT_TIMESTAMP - INTERVAL '5 minutes',
+        CURRENT_TIMESTAMP - INTERVAL '1 day'
+    ),
+    (
+        'n-demo-comment-reply',
+        'demo-comment-reply',
+        'u-reader',
+        'COMMENT_REPLY',
+        '收到新的评论回复',
+        'u-author 回复了你的评论：下一版会补充配置中心和灰度发布示例。',
+        'ARTICLE',
+        'a-demo-company-published',
+        NULL,
+        CURRENT_TIMESTAMP - INTERVAL '10 minutes'
+    )
+ON CONFLICT (event_id) DO UPDATE
+SET title = EXCLUDED.title,
+    content = EXCLUDED.content,
+    resource_type = EXCLUDED.resource_type,
+    resource_id = EXCLUDED.resource_id;

@@ -13,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -101,6 +102,31 @@ class CommentServiceTest {
                         ResponseStatusException.class,
                         ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN)
                 );
+    }
+
+    @Test
+    void createsAnOutboxNotificationWhenAnotherUserReplies() {
+        InMemoryRepository repository = new InMemoryRepository();
+        List<String> recipients = new ArrayList<>();
+        CommentService service = new CommentService(
+                repository,
+                (articleId, headers) -> {
+                },
+                (reply, parent) -> recipients.add(parent.authorId())
+        );
+        CommentResponse root = service.create(
+                "a-1",
+                new CreateCommentRequest("Root", null),
+                caller("u-reader", "READER")
+        );
+
+        service.create(
+                "a-1",
+                new CreateCommentRequest("Reply", root.id()),
+                caller("u-author", "AUTHOR")
+        );
+
+        assertThat(recipients).containsExactly("u-reader");
     }
 
     private static HttpHeaders caller(String userId, String roles) {

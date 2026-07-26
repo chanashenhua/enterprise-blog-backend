@@ -9,6 +9,10 @@ spring:
   cloud:
     gateway:
       routes:
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notifications,/api/notifications/**
         - id: stats-service
           uri: lb://stats-service
           predicates:

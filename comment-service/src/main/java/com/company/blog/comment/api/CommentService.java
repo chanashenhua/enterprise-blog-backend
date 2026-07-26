@@ -5,6 +5,7 @@ import com.company.blog.comment.CommentStatus;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -17,10 +18,22 @@ public class CommentService {
 
     private final CommentRepository repository;
     private final ArticleAccessClient articleAccessClient;
+    private final CommentNotificationOutbox notificationOutbox;
 
-    public CommentService(CommentRepository repository, ArticleAccessClient articleAccessClient) {
+    @Autowired
+    public CommentService(
+            CommentRepository repository,
+            ArticleAccessClient articleAccessClient,
+            CommentNotificationOutbox notificationOutbox
+    ) {
         this.repository = repository;
         this.articleAccessClient = articleAccessClient;
+        this.notificationOutbox = notificationOutbox;
+    }
+
+    public CommentService(CommentRepository repository, ArticleAccessClient articleAccessClient) {
+        this(repository, articleAccessClient, (reply, parent) -> {
+        });
     }
 
     @Transactional
@@ -54,6 +67,12 @@ public class CommentService {
                 now,
                 now
         ));
+        if (parentId != null) {
+            Comment parent = requiredComment(parentId);
+            if (!parent.authorId().equals(caller.userId())) {
+                notificationOutbox.appendReplyNotification(saved, parent);
+            }
+        }
         return CommentResponse.from(saved);
     }
 

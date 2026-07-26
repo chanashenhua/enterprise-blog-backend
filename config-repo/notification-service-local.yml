@@ -1,9 +1,9 @@
 server:
-  port: 8089
+  port: 8091
 
 spring:
   application:
-    name: comment-service
+    name: notification-service
   datasource:
     url: jdbc:postgresql://localhost:5432/postgres
     username: postgres
@@ -12,9 +12,8 @@ spring:
     enabled: false
 
 blog:
-  services:
-    article-service-url: http://localhost:8084
-    notification-service-url: http://localhost:8091
+  internal:
+    notification-token: ${INTERNAL_NOTIFICATION_TOKEN:local-notification-token}
 
 eureka:
   client:
@@ -23,7 +22,7 @@ eureka:
 management:
   metrics:
     tags:
-      application: ${spring.application.name:comment-service}
+      application: ${spring.application.name:notification-service}
   endpoints:
     web:
       exposure:
