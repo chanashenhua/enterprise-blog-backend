@@ -264,3 +264,13 @@ SET author_id = EXCLUDED.author_id,
     target_org_ids = EXCLUDED.target_org_ids,
     status = EXCLUDED.status,
     updated_at = CURRENT_TIMESTAMP;
+
+INSERT INTO article_interaction (article_id, user_id, interaction_type) VALUES
+    ('a-demo-company-published', 'u-admin', 'VIEW'),
+    ('a-demo-company-published', 'u-author', 'VIEW'),
+    ('a-demo-company-published', 'u-reader', 'VIEW'),
+    ('a-demo-company-published', 'u-admin', 'LIKE'),
+    ('a-demo-company-published', 'u-reader', 'LIKE'),
+    ('a-demo-company-published', 'u-author', 'FAVORITE'),
+    ('a-demo-company-published', 'u-reader', 'FAVORITE')
+ON CONFLICT (article_id, user_id, interaction_type) DO NOTHING;

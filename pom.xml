@@ -21,6 +21,7 @@
     <module>file-service</module>
     <module>search-service</module>
     <module>comment-service</module>
+    <module>stats-service</module>
   </modules>
 
   <properties>
