@@ -6,6 +6,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -19,9 +20,16 @@ public class CatalogService {
     private static final Pattern ID_PATTERN = Pattern.compile("[a-z0-9][a-z0-9-]{0,63}");
 
     private final CatalogRepository repository;
+    private final TagAuditOutbox auditOutbox;
 
     public CatalogService(CatalogRepository repository) {
+        this(repository, TagAuditOutbox.noop());
+    }
+
+    @Autowired
+    public CatalogService(CatalogRepository repository, TagAuditOutbox auditOutbox) {
         this.repository = repository;
+        this.auditOutbox = auditOutbox;
     }
 
     @Transactional(readOnly = true)
@@ -35,10 +43,23 @@ public class CatalogService {
     @Transactional
     @CacheEvict(cacheNames = {"catalog-list", "tag-validation", "category-validation"}, allEntries = true)
     public CatalogItemResponse create(CatalogType type, CatalogItemRequest request) {
+        return create(type, request, "system", List.of());
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = {"catalog-list", "tag-validation", "category-validation"}, allEntries = true)
+    public CatalogItemResponse create(
+            CatalogType type,
+            CatalogItemRequest request,
+            String actorId,
+            List<String> actorRoles
+    ) {
         String id = requireId(request == null ? null : request.id());
         String name = requireName(request == null ? null : request.name());
         try {
-            return CatalogItemResponse.from(repository.create(type, id, name));
+            CatalogItem created = repository.create(type, id, name);
+            auditOutbox.append(actorId, actorRoles, action(type, "CREATE"), type.name(), created.id(), "name=" + created.name());
+            return CatalogItemResponse.from(created);
         } catch (DuplicateKeyException ex) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Catalog id or name already exists", ex);
         }
@@ -47,11 +68,24 @@ public class CatalogService {
     @Transactional
     @CacheEvict(cacheNames = {"catalog-list", "tag-validation", "category-validation"}, allEntries = true)
     public CatalogItemResponse update(CatalogType type, String id, CatalogItemRequest request) {
+        return update(type, id, request, "system", List.of());
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = {"catalog-list", "tag-validation", "category-validation"}, allEntries = true)
+    public CatalogItemResponse update(
+            CatalogType type,
+            String id,
+            CatalogItemRequest request,
+            String actorId,
+            List<String> actorRoles
+    ) {
         String validId = requireId(id);
         String name = requireName(request == null ? null : request.name());
         try {
             CatalogItem updated = repository.update(type, validId, name)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Catalog item not found"));
+            auditOutbox.append(actorId, actorRoles, action(type, "UPDATE"), type.name(), updated.id(), "name=" + updated.name());
             return CatalogItemResponse.from(updated);
         } catch (DuplicateKeyException ex) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Catalog name already exists", ex);
@@ -61,8 +95,22 @@ public class CatalogService {
     @Transactional
     @CacheEvict(cacheNames = {"catalog-list", "tag-validation", "category-validation"}, allEntries = true)
     public void deactivate(CatalogType type, String id) {
-        repository.deactivate(type, requireId(id))
+        deactivate(type, id, "system", List.of());
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = {"catalog-list", "tag-validation", "category-validation"}, allEntries = true)
+    public void deactivate(CatalogType type, String id, String actorId, List<String> actorRoles) {
+        CatalogItem deactivated = repository.deactivate(type, requireId(id))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Catalog item not found"));
+        auditOutbox.append(
+                actorId,
+                actorRoles,
+                action(type, "DEACTIVATE"),
+                type.name(),
+                deactivated.id(),
+                "name=" + deactivated.name()
+        );
     }
 
     @Transactional(readOnly = true)
@@ -110,5 +158,9 @@ public class CatalogService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Catalog name must contain 1 to 80 characters");
         }
         return name.trim();
+    }
+
+    private static String action(CatalogType type, String operation) {
+        return type.name() + "_" + operation;
     }
 }

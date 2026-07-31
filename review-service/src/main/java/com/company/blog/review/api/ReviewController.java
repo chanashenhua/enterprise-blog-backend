@@ -26,6 +26,7 @@ public class ReviewController {
     private final ReviewPermissionClient permissionClient;
     private final ArticlePublishCallbackClient articleCallbackClient;
     private final ReviewTicketRepository ticketRepository;
+    private final ReviewDecisionCompletionService completionService;
     private final String reviewToken;
 
     @Autowired
@@ -34,12 +35,14 @@ public class ReviewController {
             ReviewPermissionClient permissionClient,
             ArticlePublishCallbackClient articleCallbackClient,
             ReviewTicketRepository ticketRepository,
+            ReviewDecisionCompletionService completionService,
             @Value("${blog.internal.review-token:local-review-token}") String reviewToken
     ) {
         this.reviewPolicy = reviewPolicy;
         this.permissionClient = permissionClient;
         this.articleCallbackClient = articleCallbackClient;
         this.ticketRepository = ticketRepository;
+        this.completionService = completionService;
         this.reviewToken = reviewToken;
     }
 
@@ -49,7 +52,14 @@ public class ReviewController {
             ArticlePublishCallbackClient articleCallbackClient,
             ReviewTicketRepository ticketRepository
     ) {
-        this(reviewPolicy, permissionClient, articleCallbackClient, ticketRepository, "local-review-token");
+        this(
+                reviewPolicy,
+                permissionClient,
+                articleCallbackClient,
+                ticketRepository,
+                new ReviewDecisionCompletionService(ticketRepository, ReviewAuditOutbox.noop()),
+                "local-review-token"
+        );
     }
 
     @PostMapping("/internal/reviews/policies/evaluate")
@@ -84,7 +94,7 @@ public class ReviewController {
         permissionClient.requireReviewAllowed(headers);
         ReviewTicket current = ticketRepository.beginApproval(ticketId);
         articleCallbackClient.approveArticle(current.articleId(), current.id(), current.reviewRequestId());
-        return ReviewTicketResponse.from(ticketRepository.completeApproval(ticketId));
+        return ReviewTicketResponse.from(completionService.completeApproval(ticketId, headers));
     }
 
     @GetMapping("/api/admin/reviews")
@@ -104,7 +114,11 @@ public class ReviewController {
         ReviewTicket current = ticketRepository.beginRejection(ticketId);
         ticketRepository.recordRejectionComment(ticketId, request == null ? "" : request.comment());
         articleCallbackClient.rejectArticle(current.articleId(), current.id(), current.reviewRequestId());
-        return ReviewTicketResponse.from(ticketRepository.completeRejection(ticketId));
+        return ReviewTicketResponse.from(completionService.completeRejection(
+                ticketId,
+                headers,
+                request == null ? "" : request.comment()
+        ));
     }
 
     public ReviewTicketResponse reject(String ticketId, HttpHeaders headers) {

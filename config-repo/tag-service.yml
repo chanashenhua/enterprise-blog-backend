@@ -20,6 +20,10 @@ spring:
 blog:
   cache:
     catalog-ttl: PT5M
+  services:
+    audit-service-url: http://audit-service:8092
+  internal:
+    audit-token: ${INTERNAL_AUDIT_TOKEN}
 
 eureka:
   client:

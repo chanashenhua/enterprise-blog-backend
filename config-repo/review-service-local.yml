@@ -1,22 +1,23 @@
 server:
-  port: 8085
+  port: 8086
 
 spring:
   application:
-    name: tag-service
+    name: review-service
   datasource:
     url: jdbc:postgresql://localhost:5432/postgres
     username: postgres
     password: ${POSTGRES_PASSWORD}
   flyway:
     enabled: false
-  cache:
-    type: simple
 
 blog:
   services:
+    permission-service-url: http://localhost:8083
+    article-service-url: http://localhost:8084
     audit-service-url: http://localhost:8092
   internal:
+    review-token: ${INTERNAL_REVIEW_TOKEN:local-review-token}
     audit-token: ${INTERNAL_AUDIT_TOKEN:local-audit-token}
 
 eureka:
@@ -26,10 +27,7 @@ eureka:
 management:
   metrics:
     tags:
-      application: ${spring.application.name:tag-service}
-  health:
-    redis:
-      enabled: false
+      application: ${spring.application.name:review-service}
   endpoints:
     web:
       exposure:

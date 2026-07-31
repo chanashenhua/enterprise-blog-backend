@@ -9,6 +9,10 @@ spring:
   cloud:
     gateway:
       routes:
+        - id: audit-admin-service
+          uri: lb://audit-service
+          predicates:
+            - Path=/api/admin/audits,/api/admin/audits/**
         - id: notification-service
           uri: lb://notification-service
           predicates:
