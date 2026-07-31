@@ -58,8 +58,27 @@ public class JdbcArticleOutbox implements ArticleOutbox {
 
     private void append(List<DomainEvent> events, StoredArticle article) {
         for (DomainEvent event : events) {
-            insert(event.aggregateId(), event.type(), payloadJson(event, article));
+            String payloadJson = payloadJson(event, article);
+            insert(event.aggregateId(), event.type(), payloadJson);
+            if (article != null
+                    && "ArticlePublished".equals(event.type())
+                    && "COMPANY".equals(article.article().visibilityType().name())) {
+                insertSubscriptionNotification(event.aggregateId(), payloadJson);
+            }
         }
+    }
+
+    private void insertSubscriptionNotification(String articleId, String articlePayloadJson) {
+        jdbcTemplate.update(
+                """
+                        insert into article_subscription_notification_event(
+                            id, article_id, payload_json, status, retry_count
+                        ) values (?, ?, ?, 'PENDING', 0)
+                        """,
+                UUID.randomUUID().toString(),
+                articleId,
+                articlePayloadJson
+        );
     }
 
     private void insert(String aggregateId, String eventType, String payloadJson) {

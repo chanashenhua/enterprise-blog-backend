@@ -31,6 +31,10 @@ blog:
       batch-size: 20
       max-retries: 5
       fixed-delay-ms: 5000
+    subscription-notification:
+      batch-size: 20
+      max-retries: 5
+      fixed-delay-ms: 5000
 
 eureka:
   client:

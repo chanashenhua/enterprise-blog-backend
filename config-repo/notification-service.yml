@@ -12,6 +12,8 @@ spring:
     enabled: true
 
 blog:
+  services:
+    tag-service-url: http://tag-service:8085
   internal:
     notification-token: ${INTERNAL_NOTIFICATION_TOKEN}
 

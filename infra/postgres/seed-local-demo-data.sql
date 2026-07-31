@@ -275,6 +275,19 @@ INSERT INTO article_interaction (article_id, user_id, interaction_type) VALUES
     ('a-demo-company-published', 'u-reader', 'FAVORITE')
 ON CONFLICT (article_id, user_id, interaction_type) DO NOTHING;
 
+INSERT INTO content_subscription (
+    id,
+    user_id,
+    target_type,
+    target_id,
+    created_at
+) VALUES
+    ('s-demo-reader-java', 'u-reader', 'TAG', 'java', CURRENT_TIMESTAMP - INTERVAL '2 days'),
+    ('s-demo-reader-engineering', 'u-reader', 'CATEGORY', 'engineering', CURRENT_TIMESTAMP - INTERVAL '1 day'),
+    ('s-demo-author-postgresql', 'u-author', 'TAG', 'postgresql', CURRENT_TIMESTAMP - INTERVAL '6 hours')
+ON CONFLICT (user_id, target_type, target_id) DO UPDATE
+SET created_at = EXCLUDED.created_at;
+
 INSERT INTO user_notification (
     id,
     event_id,
@@ -322,6 +335,18 @@ INSERT INTO user_notification (
         'a-demo-company-published',
         NULL,
         CURRENT_TIMESTAMP - INTERVAL '10 minutes'
+    ),
+    (
+        'n-demo-subscription-article',
+        'demo-subscription-article:u-reader',
+        'u-reader',
+        'SUBSCRIPTION_ARTICLE_PUBLISHED',
+        '你订阅的主题有新文章',
+        'Spring Cloud 内部博客实践',
+        'ARTICLE',
+        'a-demo-company-published',
+        NULL,
+        CURRENT_TIMESTAMP - INTERVAL '3 minutes'
     )
 ON CONFLICT (event_id) DO UPDATE
 SET title = EXCLUDED.title,

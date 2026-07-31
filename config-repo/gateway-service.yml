@@ -21,6 +21,10 @@ spring:
           uri: lb://notification-service
           predicates:
             - Path=/api/notifications,/api/notifications/**
+        - id: subscription-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/subscriptions,/api/subscriptions/**
         - id: notification-admin-service
           uri: lb://notification-service
           predicates:
