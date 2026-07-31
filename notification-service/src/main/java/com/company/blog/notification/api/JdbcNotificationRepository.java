@@ -6,7 +6,6 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -31,29 +30,29 @@ public class JdbcNotificationRepository implements NotificationRepository {
 
     @Override
     public Notification save(Notification notification) {
-        try {
-            jdbcTemplate.update(
-                    """
-                            insert into user_notification(
-                                id, event_id, recipient_user_id, notification_type, title, content,
-                                resource_type, resource_id, read_at, created_at
-                            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            """,
-                    notification.id(),
-                    notification.eventId(),
-                    notification.recipientUserId(),
-                    notification.type(),
-                    notification.title(),
-                    notification.content(),
-                    notification.resourceType(),
-                    notification.resourceId(),
-                    notification.readAt() == null ? null : Timestamp.from(notification.readAt()),
-                    Timestamp.from(notification.createdAt())
-            );
-            return notification;
-        } catch (DuplicateKeyException ignored) {
-            return findByEventId(notification.eventId()).orElseThrow();
+        Optional<Notification> existing = findByEventId(notification.eventId());
+        if (existing.isPresent()) {
+            return existing.get();
         }
+        jdbcTemplate.update(
+                """
+                        insert into user_notification(
+                            id, event_id, recipient_user_id, notification_type, title, content,
+                            resource_type, resource_id, read_at, created_at
+                        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                notification.id(),
+                notification.eventId(),
+                notification.recipientUserId(),
+                notification.type(),
+                notification.title(),
+                notification.content(),
+                notification.resourceType(),
+                notification.resourceId(),
+                notification.readAt() == null ? null : Timestamp.from(notification.readAt()),
+                Timestamp.from(notification.createdAt())
+        );
+        return notification;
     }
 
     @Override
