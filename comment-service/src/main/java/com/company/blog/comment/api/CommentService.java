@@ -48,8 +48,8 @@ public class CommentService {
             if (!articleId.equals(parent.articleId())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Reply parent belongs to another article");
             }
-            if (parent.deleted()) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot reply to a deleted comment");
+            if (!parent.active()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot reply to a hidden or deleted comment");
             }
             if (parent.parentId() != null) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Only one reply level is supported");
@@ -98,8 +98,8 @@ public class CommentService {
         articleAccessClient.requireReadable(articleId, headers);
         Comment current = requiredArticleComment(articleId, commentId);
         requireOwnerOrAdmin(current, caller);
-        if (current.deleted()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Deleted comments cannot be edited");
+        if (!current.active()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Hidden or deleted comments cannot be edited");
         }
         String content = requireContent(request == null ? null : request.content());
         Comment updated = repository.updateContent(commentId, content)

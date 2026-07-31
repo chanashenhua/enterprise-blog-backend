@@ -211,6 +211,14 @@ INSERT INTO blog_comment (
         'u-author',
         '收到，下一版会补充配置中心和灰度发布示例。',
         'ACTIVE'
+    ),
+    (
+        'c-demo-company-hidden',
+        'a-demo-company-published',
+        NULL,
+        'u-reader',
+        '这是一条用于验证治理隐藏和恢复流程的演示评论。',
+        'HIDDEN'
     )
 ON CONFLICT (id) DO UPDATE
 SET article_id = EXCLUDED.article_id,
@@ -423,6 +431,20 @@ INSERT INTO audit_record (
         'name=工程实践',
         'demo-trace-4',
         CURRENT_TIMESTAMP - INTERVAL '30 minutes'
+    ),
+    (
+        'demo-audit-comment-hide',
+        'demo-event-comment-hide',
+        'comment-service',
+        'u-admin',
+        'ADMIN',
+        'COMMENT_HIDE',
+        'COMMENT',
+        'c-demo-company-hidden',
+        'SUCCESS',
+        'articleId=a-demo-company-published; authorId=u-reader; reason=演示治理流程',
+        'demo-trace-5',
+        CURRENT_TIMESTAMP - INTERVAL '15 minutes'
     )
 ON CONFLICT (event_id) DO UPDATE
 SET actor_id = EXCLUDED.actor_id,

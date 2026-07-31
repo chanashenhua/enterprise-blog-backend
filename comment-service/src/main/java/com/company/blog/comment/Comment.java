@@ -15,4 +15,12 @@ public record Comment(
     public boolean deleted() {
         return status == CommentStatus.DELETED;
     }
+
+    public boolean hidden() {
+        return status == CommentStatus.HIDDEN;
+    }
+
+    public boolean active() {
+        return status == CommentStatus.ACTIVE;
+    }
 }

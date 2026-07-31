@@ -15,12 +15,18 @@ blog:
   services:
     article-service-url: http://article-service:8084
     notification-service-url: http://notification-service:8091
+    audit-service-url: http://audit-service:8092
   internal:
     notification-token: ${INTERNAL_NOTIFICATION_TOKEN:local-notification-token}
+    audit-token: ${INTERNAL_AUDIT_TOKEN:local-audit-token}
   outbox:
     notification:
       batch-size: 20
       max-retries: 5
+      fixed-delay-ms: 5000
+    audit:
+      batch-size: 20
+      max-retries: 10
       fixed-delay-ms: 5000
 
 eureka:
