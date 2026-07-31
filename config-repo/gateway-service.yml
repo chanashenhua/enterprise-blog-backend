@@ -13,6 +13,10 @@ spring:
           uri: lb://audit-service
           predicates:
             - Path=/api/admin/audits,/api/admin/audits/**
+        - id: stats-admin-service
+          uri: lb://stats-service
+          predicates:
+            - Path=/api/admin/stats,/api/admin/stats/**
         - id: notification-service
           uri: lb://notification-service
           predicates:
