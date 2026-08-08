@@ -2,6 +2,12 @@
 
 所有接口经网关访问，仅 `ADMIN` 角色可调用。
 
+## 全局概览
+
+`GET /api/admin/comments/overview`
+
+返回评论总数、正常/隐藏/删除数量、涉及文章数和评论作者数。该统计不受评论列表筛选条件影响。
+
 ## 查询评论
 
 `GET /api/admin/comments`

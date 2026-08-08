@@ -115,6 +115,29 @@ public class JdbcCommentRepository implements CommentRepository, AdminCommentRep
     }
 
     @Override
+    public CommentGovernanceOverview overview() {
+        return jdbcTemplate.queryForObject(
+                """
+                        select count(*) as total_count,
+                               coalesce(sum(case when status = 'ACTIVE' then 1 else 0 end), 0) as active_count,
+                               coalesce(sum(case when status = 'HIDDEN' then 1 else 0 end), 0) as hidden_count,
+                               coalesce(sum(case when status = 'DELETED' then 1 else 0 end), 0) as deleted_count,
+                               count(distinct article_id) as article_count,
+                               count(distinct author_id) as author_count
+                        from blog_comment
+                        """,
+                (resultSet, rowNumber) -> new CommentGovernanceOverview(
+                        resultSet.getLong("total_count"),
+                        resultSet.getLong("active_count"),
+                        resultSet.getLong("hidden_count"),
+                        resultSet.getLong("deleted_count"),
+                        resultSet.getLong("article_count"),
+                        resultSet.getLong("author_count")
+                )
+        );
+    }
+
+    @Override
     public Optional<Comment> hide(String commentId) {
         jdbcTemplate.update(
                 """

@@ -28,6 +28,12 @@ public class AdminCommentService {
     }
 
     @Transactional(readOnly = true)
+    public CommentGovernanceOverview overview(HttpHeaders headers) {
+        requireAdmin(headers);
+        return adminRepository.overview();
+    }
+
+    @Transactional(readOnly = true)
     public List<AdminCommentRecord> search(
             HttpHeaders headers,
             String articleId,

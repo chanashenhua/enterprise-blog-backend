@@ -20,6 +20,11 @@ public class AdminCommentController {
         this.service = service;
     }
 
+    @GetMapping("/overview")
+    public CommentGovernanceOverview overview(@RequestHeader HttpHeaders headers) {
+        return service.overview(headers);
+    }
+
     @GetMapping
     public List<AdminCommentRecord> search(
             @RequestHeader HttpHeaders headers,

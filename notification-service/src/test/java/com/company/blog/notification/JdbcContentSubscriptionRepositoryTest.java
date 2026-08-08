@@ -38,5 +38,8 @@ class JdbcContentSubscriptionRepositoryTest {
         assertThat(repository.findByUser("u-reader")).hasSize(2);
         assertThat(repository.findSubscriberUserIds("backend", Set.of("java")))
                 .containsExactly("u-reader");
+        assertThat(repository.overview().totalSubscriptionCount()).isEqualTo(2);
+        assertThat(repository.overview().subscriberCount()).isEqualTo(1);
+        assertThat(repository.overview().topTargets()).hasSize(2);
     }
 }

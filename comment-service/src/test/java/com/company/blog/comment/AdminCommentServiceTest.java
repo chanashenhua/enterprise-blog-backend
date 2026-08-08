@@ -7,6 +7,7 @@ import com.company.blog.comment.api.AdminCommentQuery;
 import com.company.blog.comment.api.AdminCommentRepository;
 import com.company.blog.comment.api.AdminCommentService;
 import com.company.blog.comment.api.CommentGovernanceActionRequest;
+import com.company.blog.comment.api.CommentGovernanceOverview;
 import com.company.blog.comment.api.CommentRepository;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ class AdminCommentServiceTest {
         assertThat(service.search(admin(), "a-1", null, "ACTIVE", 100))
                 .extracting(record -> record.id())
                 .containsExactly("c-1");
+        assertThat(service.overview(admin()).totalCount()).isEqualTo(2);
         assertThat(service.hide(admin(), "c-1", new CommentGovernanceActionRequest("不当内容")).status())
                 .isEqualTo(CommentStatus.HIDDEN);
         assertThat(service.restore(admin(), "c-1", new CommentGovernanceActionRequest("复核通过")).status())
@@ -52,6 +54,9 @@ class AdminCommentServiceTest {
         reader.set("X-User-Roles", "READER");
 
         assertThatThrownBy(() -> service.hide(reader, "c-1", null))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
+        assertThatThrownBy(() -> service.overview(reader))
                 .isInstanceOfSatisfying(ResponseStatusException.class,
                         ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
     }
@@ -95,6 +100,16 @@ class AdminCommentServiceTest {
         @Override
         public Optional<Comment> softDelete(String id) {
             return Optional.empty();
+        }
+
+        @Override
+        public CommentGovernanceOverview overview() {
+            long active = values.values().stream().filter(Comment::active).count();
+            long hidden = values.values().stream().filter(Comment::hidden).count();
+            long deleted = values.values().stream().filter(Comment::deleted).count();
+            long articles = values.values().stream().map(Comment::articleId).distinct().count();
+            long authors = values.values().stream().map(Comment::authorId).distinct().count();
+            return new CommentGovernanceOverview(values.size(), active, hidden, deleted, articles, authors);
         }
 
         @Override

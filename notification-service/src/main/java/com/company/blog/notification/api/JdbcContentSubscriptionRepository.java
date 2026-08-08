@@ -7,12 +7,13 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class JdbcContentSubscriptionRepository implements ContentSubscriptionRepository {
+public class JdbcContentSubscriptionRepository implements ContentSubscriptionRepository, AdminSubscriptionRepository {
     private static final String SELECT = """
             select id, user_id, target_type, target_id, created_at
             from content_subscription
@@ -104,6 +105,47 @@ public class JdbcContentSubscriptionRepository implements ContentSubscriptionRep
                 type.name(),
                 targetId
         );
+    }
+
+    @Override
+    public SubscriptionGovernanceOverview overview() {
+        Map<String, Object> totals = jdbcTemplate.queryForMap(
+                """
+                        select count(*) as total_count,
+                               count(distinct user_id) as subscriber_count,
+                               coalesce(sum(case when target_type = 'TAG' then 1 else 0 end), 0) as tag_count,
+                               coalesce(sum(case when target_type = 'CATEGORY' then 1 else 0 end), 0) as category_count
+                        from content_subscription
+                        """
+        );
+        return new SubscriptionGovernanceOverview(
+                number(totals.get("total_count")),
+                number(totals.get("subscriber_count")),
+                number(totals.get("tag_count")),
+                number(totals.get("category_count")),
+                topTargets()
+        );
+    }
+
+    private List<SubscriptionTargetSummary> topTargets() {
+        return jdbcTemplate.query(
+                """
+                        select target_type, target_id, count(distinct user_id) as subscriber_count
+                        from content_subscription
+                        group by target_type, target_id
+                        order by subscriber_count desc, target_type, target_id
+                        limit 10
+                        """,
+                (resultSet, rowNumber) -> new SubscriptionTargetSummary(
+                        SubscriptionTargetType.valueOf(resultSet.getString("target_type")),
+                        resultSet.getString("target_id"),
+                        resultSet.getLong("subscriber_count")
+                )
+        );
+    }
+
+    private static long number(Object value) {
+        return value instanceof Number number ? number.longValue() : 0;
     }
 
     private static ContentSubscription map(ResultSet resultSet) throws SQLException {
