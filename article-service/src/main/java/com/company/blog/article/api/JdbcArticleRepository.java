@@ -119,20 +119,41 @@ public class JdbcArticleRepository implements ArticleRepository {
 
     @Override
     public List<StoredArticle> findPublished(int limit) {
-        return jdbcTemplate.queryForList(
-                        """
-                                select id
-                                from article
-                                where status = 'PUBLISHED'
-                                order by updated_at desc, id
-                                limit ?
-                                """,
-                        String.class,
-                        limit
-                ).stream()
-                .map(this::findById)
-                .flatMap(Optional::stream)
-                .toList();
+        return findPublishedIds(
+                "select id from article where status = 'PUBLISHED' order by updated_at desc, id limit ?",
+                limit
+        );
+    }
+
+    @Override
+    public List<StoredArticle> findPublishedByCategory(String categoryId, int limit) {
+        return findPublishedIds(
+                """
+                        select id
+                        from article
+                        where status = 'PUBLISHED' and category_id = ?
+                        order by updated_at desc, id
+                        limit ?
+                        """,
+                categoryId,
+                limit
+        );
+    }
+
+    @Override
+    public List<StoredArticle> findPublishedByTag(String tagId, int limit) {
+        return findPublishedIds(
+                """
+                        select article.id
+                        from article
+                        join article_tag on article_tag.article_id = article.id
+                        where article.status = 'PUBLISHED' and article_tag.tag_id = ?
+                        order by article.updated_at desc, article.id
+                        limit ?
+                        """,
+                tagId,
+                limit
+        );
     }
 
     @Override
@@ -268,6 +289,13 @@ public class JdbcArticleRepository implements ArticleRepository {
                 tagIds,
                 row.categoryId()
         ));
+    }
+
+    private List<StoredArticle> findPublishedIds(String sql, Object... arguments) {
+        return jdbcTemplate.queryForList(sql, String.class, arguments).stream()
+                .map(this::findById)
+                .flatMap(Optional::stream)
+                .toList();
     }
 
     private void saveContent(StoredArticle storedArticle) {

@@ -20,7 +20,6 @@ public class HomeFeedService {
     private static final int DEFAULT_LIMIT = 6;
     private static final int MAX_SECTION_SIZE = 20;
     private static final int MAX_CANDIDATES = 100;
-    private static final int SUMMARY_LENGTH = 150;
 
     private final ArticleRepository repository;
     private final PermissionCheckClient permissionCheckClient;
@@ -56,7 +55,7 @@ public class HomeFeedService {
 
         List<HomeFeedItem> latest = visibleArticles.stream()
                 .limit(limit)
-                .map(article -> item(article, engagementByArticle.get(article.article().id())))
+                .map(article -> HomeFeedItemFactory.from(article, engagementByArticle.get(article.article().id())))
                 .toList();
         List<HomeFeedItem> popular = popular(
                 rankings,
@@ -69,7 +68,7 @@ public class HomeFeedService {
         List<HomeFeedItem> subscribed = visibleArticles.stream()
                 .filter(article -> matchesSubscription(article, subscriptions))
                 .limit(limit)
-                .map(article -> item(article, engagementByArticle.get(article.article().id())))
+                .map(article -> HomeFeedItemFactory.from(article, engagementByArticle.get(article.article().id())))
                 .toList();
 
         return new HomeFeedResponse(latest, popular, subscribed, Instant.now());
@@ -109,7 +108,7 @@ public class HomeFeedService {
         for (ArticleEngagement ranking : rankings) {
             StoredArticle article = visibleById.get(ranking.articleId());
             if (article == null || !included.add(ranking.articleId())) continue;
-            result.add(item(article, ranking));
+            result.add(HomeFeedItemFactory.from(article, ranking));
             if (result.size() == limit) return List.copyOf(result);
         }
         for (HomeFeedItem item : latest) {
@@ -131,32 +130,6 @@ public class HomeFeedService {
             if (type.equals("TAG") && article.tagIds().contains(targetId)) return true;
         }
         return false;
-    }
-
-    private static HomeFeedItem item(StoredArticle storedArticle, ArticleEngagement engagement) {
-        ArticleEngagement metrics = engagement == null
-                ? ArticleEngagement.empty(storedArticle.article().id())
-                : engagement;
-        return new HomeFeedItem(
-                storedArticle.article().id(),
-                storedArticle.article().authorId(),
-                storedArticle.article().title(),
-                summary(storedArticle.content().plainText()),
-                storedArticle.tagIds(),
-                storedArticle.categoryId(),
-                storedArticle.article().updatedAt(),
-                metrics.viewCount(),
-                metrics.likeCount(),
-                metrics.favoriteCount()
-        );
-    }
-
-    private static String summary(String plainText) {
-        if (plainText == null || plainText.isBlank()) return "暂无摘要";
-        String normalized = plainText.trim().replaceAll("\\s+", " ");
-        return normalized.length() <= SUMMARY_LENGTH
-                ? normalized
-                : normalized.substring(0, SUMMARY_LENGTH).stripTrailing() + "…";
     }
 
     private static int normalizeLimit(int requestedLimit) {

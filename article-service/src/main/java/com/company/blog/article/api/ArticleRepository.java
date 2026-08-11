@@ -20,6 +20,10 @@ public interface ArticleRepository {
 
     List<StoredArticle> findPublished(int limit);
 
+    List<StoredArticle> findPublishedByCategory(String categoryId, int limit);
+
+    List<StoredArticle> findPublishedByTag(String tagId, int limit);
+
     ArticleContentVersion appendContentVersion(StoredArticle article, String createdBy);
 
     List<ArticleContentVersion> findContentVersions(String articleId);

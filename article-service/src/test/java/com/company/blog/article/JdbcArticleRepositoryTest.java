@@ -111,5 +111,12 @@ class JdbcArticleRepositoryTest {
         assertThat(repository.findPublished(10))
                 .extracting(article -> article.article().id())
                 .containsExactly("a-published");
+        assertThat(repository.findPublishedByCategory("engineering", 10))
+                .extracting(article -> article.article().id())
+                .containsExactly("a-published");
+        assertThat(repository.findPublishedByTag("java", 10))
+                .extracting(article -> article.article().id())
+                .containsExactly("a-published");
+        assertThat(repository.findPublishedByTag("postgresql", 10)).isEmpty();
     }
 }
