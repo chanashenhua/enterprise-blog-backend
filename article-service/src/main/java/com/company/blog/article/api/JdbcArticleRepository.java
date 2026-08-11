@@ -195,7 +195,7 @@ public class JdbcArticleRepository implements ArticleRepository {
             return Optional.empty();
         }
 
-        ArticleRow row = rows.getFirst();
+        ArticleRow row = rows.get(0);
         ContentRow content = jdbcTemplate.queryForObject(
                 """
                         select content_json, rendered_html, plain_text

@@ -6,7 +6,7 @@
 
 **Architecture:** 使用 Spring Cloud 微服务架构，按入口层、基础设施、身份权限域、内容域、支撑域拆分。第一阶段保留细粒度服务边界，但只实现可演示的主链路；通知、统计、审计不进入本计划交付范围。
 
-**Tech Stack:** Nginx、Vue 3 + Vite、Spring Cloud Gateway、Eureka Server、Spring Cloud Config Server、Spring Boot、PostgreSQL、Redis、MinIO、Elasticsearch、Docker Compose、Maven、Java 21、Node 20。
+**Tech Stack:** Nginx、Vue 3 + Vite、Spring Cloud Gateway、Eureka Server、Spring Cloud Config Server、Spring Boot、PostgreSQL、Redis、MinIO、Elasticsearch、Docker Compose、Maven、Java 17、Node 20。
 
 ## Global Constraints
 
@@ -171,7 +171,7 @@ docker compose up -d postgres redis minio elasticsearch
   </modules>
 
   <properties>
-    <java.version>21</java.version>
+    <java.version>17</java.version>
     <spring-boot.version>3.3.5</spring-boot.version>
     <spring-cloud.version>2023.0.3</spring-cloud.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -204,7 +204,7 @@ docker compose up -d postgres redis minio elasticsearch
           <artifactId>maven-compiler-plugin</artifactId>
           <version>3.13.0</version>
           <configuration>
-            <release>21</release>
+            <release>17</release>
           </configuration>
         </plugin>
         <plugin>

@@ -129,7 +129,7 @@ services:
         condition: service_healthy
 
   eureka-server:
-    image: maven:3.9.9-eclipse-temurin-21
+    image: maven:3.9.9-eclipse-temurin-17
     container_name: enterprise-blog-eureka-server
     working_dir: /workspace
     command: bash -lc "bash ./mvnw -pl eureka-server spring-boot:run"
@@ -153,7 +153,7 @@ services:
       start_period: 30s
 
   config-server:
-    image: maven:3.9.9-eclipse-temurin-21
+    image: maven:3.9.9-eclipse-temurin-17
     container_name: enterprise-blog-config-server
     working_dir: /workspace
     command: bash -lc "bash ./mvnw -pl config-server spring-boot:run"
@@ -181,7 +181,7 @@ services:
       start_period: 30s
 
   gateway-service:
-    image: maven:3.9.9-eclipse-temurin-21
+    image: maven:3.9.9-eclipse-temurin-17
     container_name: enterprise-blog-gateway-service
     working_dir: /workspace
     command: bash -lc "bash ./mvnw -pl gateway-service spring-boot:run"
@@ -207,7 +207,7 @@ services:
       - maven-repo:/root/.m2
 
   file-service:
-    image: maven:3.9.9-eclipse-temurin-21
+    image: maven:3.9.9-eclipse-temurin-17
     container_name: enterprise-blog-file-service
     working_dir: /workspace
     command: bash -lc "bash ./mvnw -pl file-service spring-boot:run"
@@ -235,7 +235,7 @@ services:
       - maven-repo:/root/.m2
 
   search-service:
-    image: maven:3.9.9-eclipse-temurin-21
+    image: maven:3.9.9-eclipse-temurin-17
     container_name: enterprise-blog-search-service
     working_dir: /workspace
     command: bash -lc "bash ./mvnw -pl search-service -am spring-boot:run"
@@ -259,7 +259,7 @@ services:
       - maven-repo:/root/.m2
 
   user-service:
-    image: maven:3.9.9-eclipse-temurin-21
+    image: maven:3.9.9-eclipse-temurin-17
     container_name: enterprise-blog-user-service
     working_dir: /workspace
     command: bash -lc "bash ./mvnw -pl user-service spring-boot:run"
@@ -281,7 +281,7 @@ services:
       - maven-repo:/root/.m2
 
   org-service:
-    image: maven:3.9.9-eclipse-temurin-21
+    image: maven:3.9.9-eclipse-temurin-17
     container_name: enterprise-blog-org-service
     working_dir: /workspace
     command: bash -lc "bash ./mvnw -pl org-service spring-boot:run"
@@ -303,7 +303,7 @@ services:
       - maven-repo:/root/.m2
 
   permission-service:
-    image: maven:3.9.9-eclipse-temurin-21
+    image: maven:3.9.9-eclipse-temurin-17
     container_name: enterprise-blog-permission-service
     working_dir: /workspace
     command: bash -lc "bash ./mvnw -pl permission-service spring-boot:run"
@@ -321,7 +321,7 @@ services:
       - maven-repo:/root/.m2
 
   tag-service:
-    image: maven:3.9.9-eclipse-temurin-21
+    image: maven:3.9.9-eclipse-temurin-17
     container_name: enterprise-blog-tag-service
     working_dir: /workspace
     command: bash -lc "bash ./mvnw -pl tag-service spring-boot:run"
@@ -343,7 +343,7 @@ services:
       - maven-repo:/root/.m2
 
   review-service:
-    image: maven:3.9.9-eclipse-temurin-21
+    image: maven:3.9.9-eclipse-temurin-17
     container_name: enterprise-blog-review-service
     working_dir: /workspace
     command: bash -lc "bash ./mvnw -pl review-service spring-boot:run"
@@ -368,7 +368,7 @@ services:
       - maven-repo:/root/.m2
 
   article-service:
-    image: maven:3.9.9-eclipse-temurin-21
+    image: maven:3.9.9-eclipse-temurin-17
     container_name: enterprise-blog-article-service
     working_dir: /workspace
     command: bash -lc "bash ./mvnw -pl article-service spring-boot:run"

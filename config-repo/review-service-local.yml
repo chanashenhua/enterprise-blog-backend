@@ -1,0 +1,34 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: review-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: postgres
+    password: ${POSTGRES_PASSWORD}
+  flyway:
+    enabled: false
+
+blog:
+  services:
+    permission-service-url: http://localhost:8083
+    article-service-url: http://localhost:8084
+    audit-service-url: http://localhost:8092
+  internal:
+    review-token: ${INTERNAL_REVIEW_TOKEN:local-review-token}
+    audit-token: ${INTERNAL_AUDIT_TOKEN:local-audit-token}
+
+eureka:
+  client:
+    enabled: false
+
+management:
+  metrics:
+    tags:
+      application: ${spring.application.name:review-service}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus

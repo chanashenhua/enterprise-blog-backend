@@ -56,5 +56,14 @@ class JdbcCommentRepositoryTest {
         assertThat(repository.findByArticleId("a-1"))
                 .extracting(Comment::id)
                 .containsExactly("c-root", "c-reply");
+
+        assertThat(repository.hide("c-reply")).get().extracting(Comment::hidden).isEqualTo(true);
+        assertThat(repository.search(new com.company.blog.comment.api.AdminCommentQuery(
+                "a-1", "u-reader", CommentStatus.HIDDEN, 20
+        ))).extracting(Comment::id).containsExactly("c-reply");
+        assertThat(repository.restore("c-reply")).get().extracting(Comment::active).isEqualTo(true);
+        assertThat(repository.overview().totalCount()).isEqualTo(2);
+        assertThat(repository.overview().articleCount()).isEqualTo(1);
+        assertThat(repository.overview().authorCount()).isEqualTo(2);
     }
 }

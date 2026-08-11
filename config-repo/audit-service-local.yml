@@ -1,0 +1,29 @@
+server:
+  port: 8092
+
+spring:
+  application:
+    name: audit-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: postgres
+    password: ${POSTGRES_PASSWORD}
+  flyway:
+    enabled: false
+
+blog:
+  internal:
+    audit-token: ${INTERNAL_AUDIT_TOKEN:local-audit-token}
+
+eureka:
+  client:
+    enabled: false
+
+management:
+  metrics:
+    tags:
+      application: ${spring.application.name:audit-service}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus

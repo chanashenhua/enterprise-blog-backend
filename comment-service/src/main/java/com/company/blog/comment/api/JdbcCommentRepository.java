@@ -9,7 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class JdbcCommentRepository implements CommentRepository {
+public class JdbcCommentRepository implements CommentRepository, AdminCommentRepository {
     private static final String SELECT_COMMENT = """
             select id, article_id, parent_id, author_id, content, status, created_at, updated_at
             from blog_comment
@@ -87,6 +87,80 @@ public class JdbcCommentRepository implements CommentRepository {
             return findById(id);
         }
         return findById(id).filter(Comment::deleted);
+    }
+
+    @Override
+    public List<Comment> search(AdminCommentQuery query) {
+        StringBuilder sql = new StringBuilder(SELECT_COMMENT).append(" where 1 = 1");
+        List<Object> arguments = new java.util.ArrayList<>();
+        if (query.articleId() != null) {
+            sql.append(" and article_id = ?");
+            arguments.add(query.articleId());
+        }
+        if (query.authorId() != null) {
+            sql.append(" and author_id = ?");
+            arguments.add(query.authorId());
+        }
+        if (query.status() != null) {
+            sql.append(" and status = ?");
+            arguments.add(query.status().name());
+        }
+        sql.append(" order by created_at desc, id desc limit ?");
+        arguments.add(query.limit());
+        return jdbcTemplate.query(
+                sql.toString(),
+                (resultSet, rowNumber) -> mapComment(resultSet),
+                arguments.toArray()
+        );
+    }
+
+    @Override
+    public CommentGovernanceOverview overview() {
+        return jdbcTemplate.queryForObject(
+                """
+                        select count(*) as total_count,
+                               coalesce(sum(case when status = 'ACTIVE' then 1 else 0 end), 0) as active_count,
+                               coalesce(sum(case when status = 'HIDDEN' then 1 else 0 end), 0) as hidden_count,
+                               coalesce(sum(case when status = 'DELETED' then 1 else 0 end), 0) as deleted_count,
+                               count(distinct article_id) as article_count,
+                               count(distinct author_id) as author_count
+                        from blog_comment
+                        """,
+                (resultSet, rowNumber) -> new CommentGovernanceOverview(
+                        resultSet.getLong("total_count"),
+                        resultSet.getLong("active_count"),
+                        resultSet.getLong("hidden_count"),
+                        resultSet.getLong("deleted_count"),
+                        resultSet.getLong("article_count"),
+                        resultSet.getLong("author_count")
+                )
+        );
+    }
+
+    @Override
+    public Optional<Comment> hide(String commentId) {
+        jdbcTemplate.update(
+                """
+                        update blog_comment
+                        set status = 'HIDDEN', updated_at = CURRENT_TIMESTAMP
+                        where id = ? and status = 'ACTIVE'
+                        """,
+                commentId
+        );
+        return findById(commentId);
+    }
+
+    @Override
+    public Optional<Comment> restore(String commentId) {
+        jdbcTemplate.update(
+                """
+                        update blog_comment
+                        set status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP
+                        where id = ? and status = 'HIDDEN'
+                        """,
+                commentId
+        );
+        return findById(commentId);
     }
 
     private static Comment mapComment(java.sql.ResultSet resultSet) throws java.sql.SQLException {

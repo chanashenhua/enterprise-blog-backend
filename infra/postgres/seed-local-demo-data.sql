@@ -211,6 +211,14 @@ INSERT INTO blog_comment (
         'u-author',
         '收到，下一版会补充配置中心和灰度发布示例。',
         'ACTIVE'
+    ),
+    (
+        'c-demo-company-hidden',
+        'a-demo-company-published',
+        NULL,
+        'u-reader',
+        '这是一条用于验证治理隐藏和恢复流程的演示评论。',
+        'HIDDEN'
     )
 ON CONFLICT (id) DO UPDATE
 SET article_id = EXCLUDED.article_id,
@@ -264,3 +272,187 @@ SET author_id = EXCLUDED.author_id,
     target_org_ids = EXCLUDED.target_org_ids,
     status = EXCLUDED.status,
     updated_at = CURRENT_TIMESTAMP;
+
+INSERT INTO article_interaction (article_id, user_id, interaction_type) VALUES
+    ('a-demo-company-published', 'u-admin', 'VIEW'),
+    ('a-demo-company-published', 'u-author', 'VIEW'),
+    ('a-demo-company-published', 'u-reader', 'VIEW'),
+    ('a-demo-company-published', 'u-admin', 'LIKE'),
+    ('a-demo-company-published', 'u-reader', 'LIKE'),
+    ('a-demo-company-published', 'u-author', 'FAVORITE'),
+    ('a-demo-company-published', 'u-reader', 'FAVORITE')
+ON CONFLICT (article_id, user_id, interaction_type) DO NOTHING;
+
+INSERT INTO content_subscription (
+    id,
+    user_id,
+    target_type,
+    target_id,
+    created_at
+) VALUES
+    ('s-demo-reader-java', 'u-reader', 'TAG', 'java', CURRENT_TIMESTAMP - INTERVAL '2 days'),
+    ('s-demo-reader-engineering', 'u-reader', 'CATEGORY', 'engineering', CURRENT_TIMESTAMP - INTERVAL '1 day'),
+    ('s-demo-author-postgresql', 'u-author', 'TAG', 'postgresql', CURRENT_TIMESTAMP - INTERVAL '6 hours')
+ON CONFLICT (user_id, target_type, target_id) DO UPDATE
+SET created_at = EXCLUDED.created_at;
+
+INSERT INTO user_notification (
+    id,
+    event_id,
+    recipient_user_id,
+    notification_type,
+    title,
+    content,
+    resource_type,
+    resource_id,
+    read_at,
+    created_at
+) VALUES
+    (
+        'n-demo-review-approved',
+        'demo-review-approved',
+        'u-author',
+        'REVIEW_APPROVED',
+        '文章审核已通过',
+        '《Spring Cloud 内部博客实践》已通过审核并发布。',
+        'ARTICLE',
+        'a-demo-company-published',
+        NULL,
+        CURRENT_TIMESTAMP - INTERVAL '20 minutes'
+    ),
+    (
+        'n-demo-review-rejected',
+        'demo-review-rejected',
+        'u-author',
+        'REVIEW_REJECTED',
+        '文章审核未通过',
+        '演示文章已退回草稿，请修改后重新提交。',
+        'ARTICLE',
+        'a-demo-draft',
+        CURRENT_TIMESTAMP - INTERVAL '5 minutes',
+        CURRENT_TIMESTAMP - INTERVAL '1 day'
+    ),
+    (
+        'n-demo-comment-reply',
+        'demo-comment-reply',
+        'u-reader',
+        'COMMENT_REPLY',
+        '收到新的评论回复',
+        'u-author 回复了你的评论：下一版会补充配置中心和灰度发布示例。',
+        'ARTICLE',
+        'a-demo-company-published',
+        NULL,
+        CURRENT_TIMESTAMP - INTERVAL '10 minutes'
+    ),
+    (
+        'n-demo-subscription-article',
+        'demo-subscription-article:u-reader',
+        'u-reader',
+        'SUBSCRIPTION_ARTICLE_PUBLISHED',
+        '你订阅的主题有新文章',
+        'Spring Cloud 内部博客实践',
+        'ARTICLE',
+        'a-demo-company-published',
+        NULL,
+        CURRENT_TIMESTAMP - INTERVAL '3 minutes'
+    )
+ON CONFLICT (event_id) DO UPDATE
+SET title = EXCLUDED.title,
+    content = EXCLUDED.content,
+    resource_type = EXCLUDED.resource_type,
+    resource_id = EXCLUDED.resource_id;
+
+INSERT INTO audit_record (
+    id,
+    event_id,
+    source_service,
+    actor_id,
+    actor_roles,
+    action,
+    resource_type,
+    resource_id,
+    outcome,
+    details,
+    trace_id,
+    occurred_at
+) VALUES
+    (
+        'demo-audit-approve',
+        'demo-event-approve',
+        'review-service',
+        'u-reviewer',
+        'REVIEWER',
+        'REVIEW_APPROVE',
+        'ARTICLE',
+        'a-demo-team',
+        'SUCCESS',
+        'reviewTicket=demo-review-1',
+        'demo-trace-1',
+        CURRENT_TIMESTAMP - INTERVAL '3 hours'
+    ),
+    (
+        'demo-audit-reject',
+        'demo-event-reject',
+        'review-service',
+        'u-admin',
+        'ADMIN,REVIEWER',
+        'REVIEW_REJECT',
+        'ARTICLE',
+        'a-demo-rejected',
+        'SUCCESS',
+        'reviewTicket=demo-review-2; comment=内容需要补充数据来源',
+        'demo-trace-2',
+        CURRENT_TIMESTAMP - INTERVAL '2 hours'
+    ),
+    (
+        'demo-audit-tag',
+        'demo-event-tag',
+        'tag-service',
+        'u-admin',
+        'ADMIN',
+        'TAG_CREATE',
+        'TAG',
+        'observability',
+        'SUCCESS',
+        'name=可观测性',
+        'demo-trace-3',
+        CURRENT_TIMESTAMP - INTERVAL '1 hour'
+    ),
+    (
+        'demo-audit-category',
+        'demo-event-category',
+        'tag-service',
+        'u-admin',
+        'ADMIN',
+        'CATEGORY_UPDATE',
+        'CATEGORY',
+        'engineering',
+        'SUCCESS',
+        'name=工程实践',
+        'demo-trace-4',
+        CURRENT_TIMESTAMP - INTERVAL '30 minutes'
+    ),
+    (
+        'demo-audit-comment-hide',
+        'demo-event-comment-hide',
+        'comment-service',
+        'u-admin',
+        'ADMIN',
+        'COMMENT_HIDE',
+        'COMMENT',
+        'c-demo-company-hidden',
+        'SUCCESS',
+        'articleId=a-demo-company-published; authorId=u-reader; reason=演示治理流程',
+        'demo-trace-5',
+        CURRENT_TIMESTAMP - INTERVAL '15 minutes'
+    )
+ON CONFLICT (event_id) DO UPDATE
+SET actor_id = EXCLUDED.actor_id,
+    actor_roles = EXCLUDED.actor_roles,
+    action = EXCLUDED.action,
+    resource_type = EXCLUDED.resource_type,
+    resource_id = EXCLUDED.resource_id,
+    outcome = EXCLUDED.outcome,
+    details = EXCLUDED.details,
+    trace_id = EXCLUDED.trace_id,
+    occurred_at = EXCLUDED.occurred_at;

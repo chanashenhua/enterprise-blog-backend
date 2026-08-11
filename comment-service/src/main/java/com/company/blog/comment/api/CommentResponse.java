@@ -10,6 +10,7 @@ public record CommentResponse(
         String authorId,
         String content,
         boolean deleted,
+        boolean hidden,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -19,8 +20,9 @@ public record CommentResponse(
                 comment.articleId(),
                 comment.parentId(),
                 comment.authorId(),
-                comment.deleted() ? null : comment.content(),
+                comment.active() ? comment.content() : null,
                 comment.deleted(),
+                comment.hidden(),
                 comment.createdAt(),
                 comment.updatedAt()
         );

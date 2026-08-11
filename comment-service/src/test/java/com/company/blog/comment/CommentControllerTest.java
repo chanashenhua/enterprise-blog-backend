@@ -43,6 +43,7 @@ class CommentControllerTest {
                         "u-author",
                         "Hello",
                         false,
+                        false,
                         now,
                         now
                 ));

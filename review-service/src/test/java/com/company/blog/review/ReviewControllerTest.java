@@ -55,7 +55,7 @@ class ReviewControllerTest {
                 .andExpect(jsonPath("$.status").value("APPROVED"));
 
         assertThat(permissionClient.headers).hasSize(1);
-        assertThat(permissionClient.headers.getFirst().getFirst("X-User-Roles")).isEqualTo("REVIEWER");
+        assertThat(permissionClient.headers.get(0).getFirst("X-User-Roles")).isEqualTo("REVIEWER");
     }
 
     @Test

@@ -35,21 +35,65 @@ public class JdbcArticleOutbox implements ArticleOutbox {
         append(events, article);
     }
 
+    @Override
+    public void appendAuthorNotification(
+            StoredArticle article,
+            String eventType,
+            String title,
+            String content
+    ) {
+        try {
+            Map<String, Object> payload = new java.util.LinkedHashMap<>();
+            payload.put("recipientUserId", article.article().authorId());
+            payload.put("type", eventType);
+            payload.put("title", title);
+            payload.put("content", content);
+            payload.put("resourceType", "ARTICLE");
+            payload.put("resourceId", article.article().id());
+            insert(article.article().id(), eventType, OBJECT_MAPPER.writeValueAsString(payload));
+        } catch (Exception ex) {
+            throw new IllegalStateException("Unable to serialize notification event", ex);
+        }
+    }
+
     private void append(List<DomainEvent> events, StoredArticle article) {
         for (DomainEvent event : events) {
-            jdbcTemplate.update(
-                    """
-                            insert into domain_event
-                                (id, aggregate_type, aggregate_id, event_type, payload_json, status, retry_count)
-                            values (?, ?, ?, ?, ?, 'PENDING', 0)
-                            """,
-                    UUID.randomUUID().toString(),
-                    "article",
-                    event.aggregateId(),
-                    event.type(),
-                    payloadJson(event, article)
-            );
+            String payloadJson = payloadJson(event, article);
+            insert(event.aggregateId(), event.type(), payloadJson);
+            if (article != null
+                    && "ArticlePublished".equals(event.type())
+                    && "COMPANY".equals(article.article().visibilityType().name())) {
+                insertSubscriptionNotification(event.aggregateId(), payloadJson);
+            }
         }
+    }
+
+    private void insertSubscriptionNotification(String articleId, String articlePayloadJson) {
+        jdbcTemplate.update(
+                """
+                        insert into article_subscription_notification_event(
+                            id, article_id, payload_json, status, retry_count
+                        ) values (?, ?, ?, 'PENDING', 0)
+                        """,
+                UUID.randomUUID().toString(),
+                articleId,
+                articlePayloadJson
+        );
+    }
+
+    private void insert(String aggregateId, String eventType, String payloadJson) {
+        jdbcTemplate.update(
+                """
+                        insert into domain_event
+                            (id, aggregate_type, aggregate_id, event_type, payload_json, status, retry_count)
+                        values (?, ?, ?, ?, ?, 'PENDING', 0)
+                        """,
+                UUID.randomUUID().toString(),
+                "article",
+                aggregateId,
+                eventType,
+                payloadJson
+        );
     }
 
     private static String payloadJson(DomainEvent event, StoredArticle storedArticle) {

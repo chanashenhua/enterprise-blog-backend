@@ -15,6 +15,7 @@ docker compose ps
 - gateway-service: http://localhost:8080
 - eureka-server: http://localhost:8761
 - config-server: http://localhost:8888
+- audit-service: http://localhost:8092
 - minio console: http://localhost:9001
 - elasticsearch: http://localhost:9200
 
@@ -29,7 +30,8 @@ Get-Content infra/postgres/seed-demo-data.sql | docker compose exec -T postgres 
 ### 不使用 Docker 的本机 PostgreSQL
 
 本机单库调试使用 `jdbc:postgresql://localhost:5432/postgres`。密码只通过当前终端环境变量传入，
-不要写入 Git。文章服务的 `V3`～`V5`、标签服务的 `V3` 与评论服务的 `V1` 迁移只在数据库
+不要写入 Git。文章服务的 `V3`～`V6`、标签服务的 `V3`、评论服务的 `V1`～`V3`、
+统计服务、通知服务的 `V1`～`V2` 和审计服务的 `V1`，以及审核服务的 `V6`、标签服务的 `V4` 迁移只在数据库
 尚无对应结构时各执行一次；
 种子脚本可重复执行：
 
@@ -46,6 +48,24 @@ psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
 psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
   -f comment-service/src/main/resources/db/migration/V1__comments.sql
 psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
+  -f comment-service/src/main/resources/db/migration/V2__comment_notification_outbox.sql
+psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
+  -f comment-service/src/main/resources/db/migration/V3__comment_governance.sql
+psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
+  -f stats-service/src/main/resources/db/migration/V1__article_interactions.sql
+psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
+  -f notification-service/src/main/resources/db/migration/V1__notifications.sql
+psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
+  -f notification-service/src/main/resources/db/migration/V2__content_subscriptions.sql
+psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
+  -f article-service/src/main/resources/db/migration/V6__article_subscription_notification_outbox.sql
+psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
+  -f audit-service/src/main/resources/db/migration/V1__audit_records.sql
+psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
+  -f review-service/src/main/resources/db/migration/V6__review_audit_outbox.sql
+psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
+  -f tag-service/src/main/resources/db/migration/V4__tag_audit_outbox.sql
+psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
   -f infra/postgres/seed-local-demo-data.sql
 Remove-Item Env:PGPASSWORD
 ```
@@ -61,7 +81,11 @@ Remove-Item Env:PGPASSWORD
 - 搜索团队可见的待审核文章及对应审核单。
 
 每篇演示文章还会建立一个初始内容版本，可用于验证文章版本列表接口。
-已发布文章会建立一条评论和一条作者回复，可用于验证评论线程接口。
+已发布文章会建立一条评论、一条作者回复和一条治理隐藏评论，可用于验证评论线程与管理端治理接口。
+启动 `stats-service` 后，访问已发布文章会建立去重浏览记录，并可验证点赞与收藏接口。
+通知服务的演示数据包含审核通过、审核退回、评论回复和订阅文章通知，可用于验证未读数与已读状态。
+`u-reader` 默认订阅 Java 标签和工程实践分类，`u-author` 默认订阅 PostgreSQL 标签。
+审计服务包含审核决策与分类标签维护演示记录，可在管理端“操作审计”页按操作人、动作、资源和时间查询。
 
 ## 核心验收
 

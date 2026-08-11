@@ -13,6 +13,12 @@ spring:
   cache:
     type: simple
 
+blog:
+  services:
+    audit-service-url: http://localhost:8092
+  internal:
+    audit-token: ${INTERNAL_AUDIT_TOKEN:local-audit-token}
+
 eureka:
   client:
     enabled: false

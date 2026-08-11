@@ -37,7 +37,7 @@ public class AdminTagController {
             @RequestBody CatalogItemRequest request
     ) {
         requireAdmin(headers);
-        return catalogService.create(CatalogType.TAG, request);
+        return catalogService.create(CatalogType.TAG, request, actorId(headers), roles(headers));
     }
 
     @PutMapping("/api/admin/tags/{id}")
@@ -47,14 +47,14 @@ public class AdminTagController {
             @RequestBody CatalogItemRequest request
     ) {
         requireAdmin(headers);
-        return catalogService.update(CatalogType.TAG, id, request);
+        return catalogService.update(CatalogType.TAG, id, request, actorId(headers), roles(headers));
     }
 
     @DeleteMapping("/api/admin/tags/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deactivateTag(@RequestHeader HttpHeaders headers, @PathVariable("id") String id) {
         requireAdmin(headers);
-        catalogService.deactivate(CatalogType.TAG, id);
+        catalogService.deactivate(CatalogType.TAG, id, actorId(headers), roles(headers));
     }
 
     @GetMapping("/api/admin/categories")
@@ -70,7 +70,7 @@ public class AdminTagController {
             @RequestBody CatalogItemRequest request
     ) {
         requireAdmin(headers);
-        return catalogService.create(CatalogType.CATEGORY, request);
+        return catalogService.create(CatalogType.CATEGORY, request, actorId(headers), roles(headers));
     }
 
     @PutMapping("/api/admin/categories/{id}")
@@ -80,14 +80,14 @@ public class AdminTagController {
             @RequestBody CatalogItemRequest request
     ) {
         requireAdmin(headers);
-        return catalogService.update(CatalogType.CATEGORY, id, request);
+        return catalogService.update(CatalogType.CATEGORY, id, request, actorId(headers), roles(headers));
     }
 
     @DeleteMapping("/api/admin/categories/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deactivateCategory(@RequestHeader HttpHeaders headers, @PathVariable("id") String id) {
         requireAdmin(headers);
-        catalogService.deactivate(CatalogType.CATEGORY, id);
+        catalogService.deactivate(CatalogType.CATEGORY, id, actorId(headers), roles(headers));
     }
 
     private static void requireAdmin(HttpHeaders headers) {
@@ -95,5 +95,17 @@ public class AdminTagController {
         if (roles == null || java.util.Arrays.stream(roles.split(",")).map(String::trim).noneMatch("ADMIN"::equals)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ADMIN role is required");
         }
+    }
+
+    private static String actorId(HttpHeaders headers) {
+        String actorId = headers.getFirst("X-User-Id");
+        return actorId == null || actorId.isBlank() ? "unknown" : actorId.trim();
+    }
+
+    private static List<String> roles(HttpHeaders headers) {
+        String roles = headers.getFirst("X-User-Roles");
+        return roles == null || roles.isBlank()
+                ? List.of()
+                : java.util.Arrays.stream(roles.split(",")).map(String::trim).filter(role -> !role.isBlank()).toList();
     }
 }

@@ -50,8 +50,9 @@ public class MockOidcUserContextFilter implements GlobalFilter, Ordered {
                 .orElseGet(() -> UUID.randomUUID().toString());
 
         // 再次清除可信头后才写入模拟身份，避免原始请求头与开发身份混用。
-        ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
-                .headers(headers -> {
+        ServerHttpRequest mutatedRequest = TrustedUserContextHeaderFilter.copyWithMutableHeaders(
+                exchange.getRequest(),
+                headers -> {
                     TrustedUserContextHeaderFilter.removeTrustedHeaders(headers);
                     copyIfPresent(sourceHeaders, headers, MOCK_USER_HEADER, TrustedUserContextHeaderFilter.USER_ID_HEADER);
                     copyIfPresent(sourceHeaders, headers, MOCK_ROLES_HEADER, TrustedUserContextHeaderFilter.USER_ROLES_HEADER);
@@ -60,8 +61,8 @@ public class MockOidcUserContextFilter implements GlobalFilter, Ordered {
                     copyIfPresent(sourceHeaders, headers, MOCK_TEAMS_HEADER, TrustedUserContextHeaderFilter.TEAM_IDS_HEADER);
                     removeMockHeaders(headers);
                     headers.set(TRACE_ID_HEADER, traceId);
-                })
-                .build();
+                }
+        );
 
         return chain.filter(exchange.mutate().request(mutatedRequest).build());
     }

@@ -1,0 +1,29 @@
+server:
+  port: 8091
+
+spring:
+  application:
+    name: notification-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: postgres
+    password: ${POSTGRES_PASSWORD}
+  flyway:
+    enabled: false
+
+blog:
+  internal:
+    notification-token: ${INTERNAL_NOTIFICATION_TOKEN:local-notification-token}
+
+eureka:
+  client:
+    enabled: false
+
+management:
+  metrics:
+    tags:
+      application: ${spring.application.name:notification-service}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus

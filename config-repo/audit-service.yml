@@ -1,0 +1,31 @@
+server:
+  port: 8092
+
+spring:
+  application:
+    name: audit-service
+  datasource:
+    url: jdbc:postgresql://postgres:5432/audit_db
+    username: ${POSTGRES_USER:blog}
+    password: ${POSTGRES_PASSWORD:blog}
+  flyway:
+    enabled: true
+
+blog:
+  internal:
+    audit-token: ${INTERNAL_AUDIT_TOKEN}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true

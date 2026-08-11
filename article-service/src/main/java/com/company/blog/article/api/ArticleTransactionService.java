@@ -97,6 +97,12 @@ public class ArticleTransactionService {
         if (article.approveFromReview(reviewTicketId, reviewRequestId)) {
             repository.save(storedArticle);
             articleOutbox.appendArticleEvents(storedArticle, article.pullEvents());
+            articleOutbox.appendAuthorNotification(
+                    storedArticle,
+                    "REVIEW_APPROVED",
+                    "文章审核已通过",
+                    "《" + article.title() + "》已通过审核并发布。"
+            );
         }
         return storedArticle;
     }
@@ -108,8 +114,15 @@ public class ArticleTransactionService {
             String reviewRequestId
     ) {
         StoredArticle storedArticle = findForUpdate(articleId);
-        if (storedArticle.article().rejectFromReview(reviewTicketId, reviewRequestId)) {
+        Article article = storedArticle.article();
+        if (article.rejectFromReview(reviewTicketId, reviewRequestId)) {
             repository.save(storedArticle);
+            articleOutbox.appendAuthorNotification(
+                    storedArticle,
+                    "REVIEW_REJECTED",
+                    "文章审核未通过",
+                    "《" + article.title() + "》已退回草稿，请修改后重新提交。"
+            );
         }
         return storedArticle;
     }

@@ -15,8 +15,10 @@ blog:
   services:
     permission-service-url: http://permission-service:8083
     article-service-url: http://article-service:8084
+    audit-service-url: http://audit-service:8092
   internal:
     review-token: ${INTERNAL_REVIEW_TOKEN:local-review-token}
+    audit-token: ${INTERNAL_AUDIT_TOKEN}
 
 eureka:
   client:

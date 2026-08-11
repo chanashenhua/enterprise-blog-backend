@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.web.server.ServerWebExchange;
@@ -22,8 +24,20 @@ class TrustedUserContextHeaderFilterTest {
                 .build();
         TrustedUserContextHeaderFilter filter = new TrustedUserContextHeaderFilter();
         AtomicReference<ServerWebExchange> captured = new AtomicReference<>();
+        ServerHttpRequest requestWithReadOnlyHeaders = new ServerHttpRequestDecorator(request) {
+            private final HttpHeaders readOnlyHeaders = HttpHeaders.readOnlyHttpHeaders(request.getHeaders());
 
-        filter.filter(MockServerWebExchange.from(request), next -> {
+            @Override
+            public HttpHeaders getHeaders() {
+                return readOnlyHeaders;
+            }
+        };
+        ServerWebExchange exchange = MockServerWebExchange.from(request)
+                .mutate()
+                .request(requestWithReadOnlyHeaders)
+                .build();
+
+        filter.filter(exchange, next -> {
             captured.set(next);
             return Mono.empty();
         }).block();
