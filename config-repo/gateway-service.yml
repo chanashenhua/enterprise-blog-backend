@@ -64,7 +64,7 @@ spring:
         - id: article-admin-search-service
           uri: lb://article-service
           predicates:
-            - Path=/api/admin/search/**
+            - Path=/api/admin/search/**,/api/admin/content/**
         - id: tag-admin-service
           uri: lb://tag-service
           predicates:

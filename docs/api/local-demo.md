@@ -1,5 +1,8 @@
 # 本地演示环境
 
+使用 IDEA 与 WebStorm、不依赖 Docker 的启动顺序和环境变量，见
+[本地 IDE 启动指南](../local-ide-startup.md)。
+
 ## 准备
 
 ```powershell
@@ -90,6 +93,13 @@ Remove-Item Env:PGPASSWORD
 `u-reader` 默认订阅 Java 标签和工程实践分类，`u-author` 默认订阅 PostgreSQL 标签。
 两篇全公司可见文章会组成“企业后端工程实践路径”演示专题，可用于验证专题详情、排序和维护入口。
 审计服务包含审核决策与分类标签维护演示记录，可在管理端“操作审计”页按操作人、动作、资源和时间查询。
+
+如果 IDEA 在项目已经改为 Java 17 后仍提示 JVM 目标 21，先确认 Project SDK、各模块 SDK 和 Maven Runner
+都使用 JDK 17，然后重新加载 Maven。仍有旧产物时，在仓库根目录执行：
+
+```powershell
+.\mvnw.cmd clean test
+```
 
 ## 核心验收
 
