@@ -60,6 +60,8 @@ psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
 psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
   -f article-service/src/main/resources/db/migration/V6__article_subscription_notification_outbox.sql
 psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
+  -f article-service/src/main/resources/db/migration/V7__knowledge_collections.sql
+psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
   -f audit-service/src/main/resources/db/migration/V1__audit_records.sql
 psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
   -f review-service/src/main/resources/db/migration/V6__review_audit_outbox.sql
@@ -74,10 +76,11 @@ Remove-Item Env:PGPASSWORD
 `config-repo/article-service-local.yml` 会连接本机单库并关闭 Flyway，因为多个服务共用
 `public` schema 时不能共用一张 `flyway_schema_history`。
 
-本机种子脚本会建立三篇文章：
+本机种子脚本会建立四篇文章：
 
 - PostgreSQL 持久化草稿；
 - 全公司可见的已发布文章；
+- 全公司可见的 PostgreSQL 排障文章；
 - 搜索团队可见的待审核文章及对应审核单。
 
 每篇演示文章还会建立一个初始内容版本，可用于验证文章版本列表接口。
@@ -85,6 +88,7 @@ Remove-Item Env:PGPASSWORD
 启动 `stats-service` 后，访问已发布文章会建立去重浏览记录，并可验证点赞与收藏接口。
 通知服务的演示数据包含审核通过、审核退回、评论回复和订阅文章通知，可用于验证未读数与已读状态。
 `u-reader` 默认订阅 Java 标签和工程实践分类，`u-author` 默认订阅 PostgreSQL 标签。
+两篇全公司可见文章会组成“企业后端工程实践路径”演示专题，可用于验证专题详情、排序和维护入口。
 审计服务包含审核决策与分类标签维护演示记录，可在管理端“操作审计”页按操作人、动作、资源和时间查询。
 
 ## 核心验收

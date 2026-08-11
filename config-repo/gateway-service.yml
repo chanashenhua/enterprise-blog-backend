@@ -48,7 +48,7 @@ spring:
         - id: article-service
           uri: lb://article-service
           predicates:
-            - Path=/api/articles/**
+            - Path=/api/articles/**,/api/collections,/api/collections/**
         - id: search-service
           uri: lb://search-service
           predicates:
