@@ -18,6 +18,8 @@ public interface ArticleRepository {
 
     List<StoredArticle> findByAuthorId(String authorId);
 
+    List<StoredArticle> findPublished(int limit);
+
     ArticleContentVersion appendContentVersion(StoredArticle article, String createdBy);
 
     List<ArticleContentVersion> findContentVersions(String articleId);

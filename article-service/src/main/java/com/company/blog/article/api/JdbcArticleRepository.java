@@ -118,6 +118,24 @@ public class JdbcArticleRepository implements ArticleRepository {
     }
 
     @Override
+    public List<StoredArticle> findPublished(int limit) {
+        return jdbcTemplate.queryForList(
+                        """
+                                select id
+                                from article
+                                where status = 'PUBLISHED'
+                                order by updated_at desc, id
+                                limit ?
+                                """,
+                        String.class,
+                        limit
+                ).stream()
+                .map(this::findById)
+                .flatMap(Optional::stream)
+                .toList();
+    }
+
+    @Override
     public ArticleContentVersion appendContentVersion(StoredArticle storedArticle, String createdBy) {
         Integer nextVersion = jdbcTemplate.queryForObject(
                 """
