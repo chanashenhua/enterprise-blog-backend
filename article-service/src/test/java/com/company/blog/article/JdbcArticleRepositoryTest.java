@@ -73,4 +73,50 @@ class JdbcArticleRepositoryTest {
                     assertThat(version.categoryId()).isEqualTo("engineering");
                 });
     }
+
+    @Test
+    void listsOnlyPublishedArticlesForTheHomeFeed() {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource(
+                "jdbc:h2:mem:article_feed_repository;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
+                "sa",
+                ""
+        );
+        Flyway.configure()
+                .dataSource(dataSource)
+                .locations("classpath:db/migration")
+                .load()
+                .migrate();
+        JdbcArticleRepository repository = new JdbcArticleRepository(new JdbcTemplate(dataSource));
+        String contentJson = """
+                {"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"首页正文"}]}]}
+                """.trim();
+        Article published = Article.draft("a-published", "u-author", "已发布文章");
+        published.submitForPublish(ArticleVisibilityType.COMPANY, Set.of(), false);
+        repository.save(new StoredArticle(
+                published,
+                contentJson,
+                ArticleContentProjection.from(contentJson),
+                Set.of("java"),
+                "engineering"
+        ));
+        Article draft = Article.draft("a-draft", "u-author", "草稿文章");
+        repository.save(new StoredArticle(
+                draft,
+                contentJson,
+                ArticleContentProjection.from(contentJson),
+                Set.of(),
+                null
+        ));
+
+        assertThat(repository.findPublished(10))
+                .extracting(article -> article.article().id())
+                .containsExactly("a-published");
+        assertThat(repository.findPublishedByCategory("engineering", 10))
+                .extracting(article -> article.article().id())
+                .containsExactly("a-published");
+        assertThat(repository.findPublishedByTag("java", 10))
+                .extracting(article -> article.article().id())
+                .containsExactly("a-published");
+        assertThat(repository.findPublishedByTag("postgresql", 10)).isEmpty();
+    }
 }

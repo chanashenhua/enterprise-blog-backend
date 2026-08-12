@@ -14,6 +14,8 @@ spring:
 blog:
   services:
     article-service-url: http://article-service:8084
+  internal:
+    feed-token: ${INTERNAL_FEED_TOKEN:local-feed-token}
 
 eureka:
   client:

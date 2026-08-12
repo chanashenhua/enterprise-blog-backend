@@ -46,6 +46,37 @@ public class ArticleMemoryRepository implements ArticleRepository {
     }
 
     @Override
+    public List<StoredArticle> findPublished(int limit) {
+        return publishedArticles()
+                .limit(limit)
+                .toList();
+    }
+
+    @Override
+    public List<StoredArticle> findPublishedByCategory(String categoryId, int limit) {
+        return publishedArticles()
+                .filter(article -> categoryId.equals(article.categoryId()))
+                .limit(limit)
+                .toList();
+    }
+
+    @Override
+    public List<StoredArticle> findPublishedByTag(String tagId, int limit) {
+        return publishedArticles()
+                .filter(article -> article.tagIds().contains(tagId))
+                .limit(limit)
+                .toList();
+    }
+
+    private java.util.stream.Stream<StoredArticle> publishedArticles() {
+        return articles.values().stream()
+                .filter(article -> article.article().status() == ArticleStatus.PUBLISHED)
+                .sorted(Comparator.comparing(
+                        (StoredArticle article) -> article.article().updatedAt()
+                ).reversed().thenComparing(article -> article.article().id()));
+    }
+
+    @Override
     public ArticleContentVersion appendContentVersion(StoredArticle storedArticle, String createdBy) {
         CopyOnWriteArrayList<ArticleContentVersion> articleVersions = versions.computeIfAbsent(
                 storedArticle.article().id(),

@@ -90,6 +90,17 @@ INSERT INTO article (
         NULL
     ),
     (
+        'a-demo-postgresql-published',
+        'u-author',
+        'PostgreSQL 索引与慢查询排查',
+        'PUBLISHED',
+        'database',
+        'COMPANY',
+        NULL,
+        NULL,
+        NULL
+    ),
+    (
         'a-demo-team-review',
         'u-author',
         '搜索团队索引优化方案',
@@ -123,6 +134,12 @@ INSERT INTO article_content (article_id, content_json, rendered_html, plain_text
         $json${"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"介绍 Spring Cloud 在企业内部博客中的服务治理实践。"}]}]}$json$,
         '<p>介绍 Spring Cloud 在企业内部博客中的服务治理实践。</p>',
         '介绍 Spring Cloud 在企业内部博客中的服务治理实践。'
+    ),
+    (
+        'a-demo-postgresql-published',
+        $json${"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"从执行计划、索引选择和统计信息三个角度排查 PostgreSQL 慢查询。"}]}]}$json$,
+        '<p>从执行计划、索引选择和统计信息三个角度排查 PostgreSQL 慢查询。</p>',
+        '从执行计划、索引选择和统计信息三个角度排查 PostgreSQL 慢查询。'
     ),
     (
         'a-demo-team-review',
@@ -166,6 +183,17 @@ INSERT INTO article_content_version (
         '介绍 Spring Cloud 在企业内部博客中的服务治理实践。',
         'java,spring-cloud',
         'engineering',
+        'u-author'
+    ),
+    (
+        'a-demo-postgresql-published',
+        1,
+        'PostgreSQL 索引与慢查询排查',
+        $json${"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"从执行计划、索引选择和统计信息三个角度排查 PostgreSQL 慢查询。"}]}]}$json$,
+        '<p>从执行计划、索引选择和统计信息三个角度排查 PostgreSQL 慢查询。</p>',
+        '从执行计划、索引选择和统计信息三个角度排查 PostgreSQL 慢查询。',
+        'postgresql',
+        'database',
         'u-author'
     ),
     (
@@ -229,25 +257,65 @@ SET article_id = EXCLUDED.article_id,
     updated_at = CURRENT_TIMESTAMP;
 
 DELETE FROM article_visibility_target
-WHERE article_id IN ('a-demo-draft', 'a-demo-company-published', 'a-demo-team-review');
+WHERE article_id IN (
+    'a-demo-draft',
+    'a-demo-company-published',
+    'a-demo-postgresql-published',
+    'a-demo-team-review'
+);
 
 INSERT INTO article_visibility_target (article_id, visibility_type, target_org_id) VALUES
     ('a-demo-team-review', 'TEAM', 't-search');
 
 DELETE FROM article_tag
-WHERE article_id IN ('a-demo-draft', 'a-demo-company-published', 'a-demo-team-review');
+WHERE article_id IN (
+    'a-demo-draft',
+    'a-demo-company-published',
+    'a-demo-postgresql-published',
+    'a-demo-team-review'
+);
 
 INSERT INTO article_tag (article_id, tag_id) VALUES
     ('a-demo-draft', 'postgresql'),
     ('a-demo-company-published', 'java'),
     ('a-demo-company-published', 'spring-cloud'),
+    ('a-demo-postgresql-published', 'postgresql'),
     ('a-demo-team-review', 'elasticsearch');
 
 INSERT INTO article_publish_record (id, article_id, published_by) VALUES
-    ('pr-demo-company', 'a-demo-company-published', 'u-author')
+    ('pr-demo-company', 'a-demo-company-published', 'u-author'),
+    ('pr-demo-postgresql', 'a-demo-postgresql-published', 'u-author')
 ON CONFLICT (id) DO UPDATE
 SET article_id = EXCLUDED.article_id,
     published_by = EXCLUDED.published_by;
+
+INSERT INTO knowledge_collection (
+    id,
+    owner_id,
+    title,
+    description,
+    created_at,
+    updated_at
+) VALUES (
+    'kc-demo-backend-path',
+    'u-author',
+    '企业后端工程实践路径',
+    '从服务治理到数据库性能排查的推荐阅读顺序。',
+    CURRENT_TIMESTAMP - INTERVAL '2 days',
+    CURRENT_TIMESTAMP - INTERVAL '1 hour'
+)
+ON CONFLICT (id) DO UPDATE
+SET owner_id = EXCLUDED.owner_id,
+    title = EXCLUDED.title,
+    description = EXCLUDED.description,
+    updated_at = EXCLUDED.updated_at;
+
+DELETE FROM knowledge_collection_article
+WHERE collection_id = 'kc-demo-backend-path';
+
+INSERT INTO knowledge_collection_article (collection_id, article_id, position) VALUES
+    ('kc-demo-backend-path', 'a-demo-company-published', 0),
+    ('kc-demo-backend-path', 'a-demo-postgresql-published', 1);
 
 INSERT INTO review_ticket (
     id,
@@ -280,7 +348,10 @@ INSERT INTO article_interaction (article_id, user_id, interaction_type) VALUES
     ('a-demo-company-published', 'u-admin', 'LIKE'),
     ('a-demo-company-published', 'u-reader', 'LIKE'),
     ('a-demo-company-published', 'u-author', 'FAVORITE'),
-    ('a-demo-company-published', 'u-reader', 'FAVORITE')
+    ('a-demo-company-published', 'u-reader', 'FAVORITE'),
+    ('a-demo-postgresql-published', 'u-author', 'VIEW'),
+    ('a-demo-postgresql-published', 'u-reader', 'VIEW'),
+    ('a-demo-postgresql-published', 'u-reader', 'FAVORITE')
 ON CONFLICT (article_id, user_id, interaction_type) DO NOTHING;
 
 INSERT INTO content_subscription (
