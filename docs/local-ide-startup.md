@@ -1,19 +1,12 @@
 # IDEA 与 WebStorm 本地启动指南
 
-本指南用于当前不安装 Docker 的开发环境。后端统一使用 Java 17，本机 PostgreSQL 和 Redis 需要先启动；
-Elasticsearch、MinIO、Nginx 和正式部署不属于当前阶段。
+本指南适用于不安装 Docker 的本地开发环境。后端使用 Java 17、本机 PostgreSQL 和 Redis；Elasticsearch、MinIO、Nginx 与正式部署不属于当前阶段。
 
-## 一、IDEA 基础设置
+## 1. IDEA 基础配置
 
-1. 将 Project SDK、Project language level、所有模块 SDK 和 Maven Runner JRE 都设为 JDK 17。
-2. 重新加载根目录 `pom.xml`，不要逐个导入子模块。
-3. 每个业务服务使用 `SPRING_CONFIG_IMPORT=configserver:http://localhost:8888`。
-4. 需要数据库的服务使用 `SPRING_PROFILES_ACTIVE=local`，并通过运行配置传入
-   `POSTGRES_PASSWORD`；密码不要写入仓库。
-5. 所有业务服务使用
-   `EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://localhost:8761/eureka/`。
-
-Config Server 的运行配置使用：
+1. 将 Project SDK、Project language level、所有模块 SDK 和 Maven Runner JRE 设置为 JDK 17。
+2. 从根目录 `pom.xml` 重新加载 Maven 项目，不要逐个导入子模块。
+3. Config Server 环境变量：
 
 ```text
 SPRING_PROFILES_ACTIVE=native
@@ -21,7 +14,7 @@ SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS=file:///$PROJECT_DIR$/config-
 SERVER_PORT=8888
 ```
 
-Gateway 的运行配置使用：
+4. Gateway 环境变量：
 
 ```text
 SPRING_PROFILES_ACTIVE=dev
@@ -31,45 +24,78 @@ EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://localhost:8761/eureka/
 GATEWAY_DEV_MOCK_TOKEN=local-dev-token
 ```
 
-## 二、启动顺序
+5. 需要数据库的业务服务使用 `SPRING_PROFILES_ACTIVE=local`，并设置：
 
-先启动基础入口，再启动业务服务：
+```text
+SPRING_CONFIG_IMPORT=configserver:http://localhost:8888
+EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://localhost:8761/eureka/
+POSTGRES_PASSWORD=<你的本机 PostgreSQL 密码>
+```
 
-1. `EurekaServerApplication`（8761）；
-2. `ConfigServerApplication`（8888）；
-3. `PermissionServiceApplication`（8083）；
-4. `ArticleServiceApplication`（8084）、`TagServiceApplication`（8085）、
-   `ReviewServiceApplication`（8086）；
-5. `CommentServiceApplication`（8089）、`StatsServiceApplication`（8090）、
-   `NotificationServiceApplication`（8091）、`AuditServiceApplication`（8092）；
-6. `GatewayServiceApplication`（8080）。
+## 2. 后端启动顺序
 
-以上服务可验收第四阶段的首页、评论、分类标签、专题和管理概览。搜索依赖 Elasticsearch，文件上传依赖
-MinIO；本机没有对应基础设施时，可以不启动 `SearchServiceApplication` 和 `FileServiceApplication`，
-相关页面功能会暂不可用。需要验证这些能力时再补齐对应环境。
+按以下顺序启动：
 
-在浏览器打开 `http://localhost:8761`，确认上面启动的业务服务均已注册，然后再启动前端。
+1. `EurekaServerApplication`（8761）
+2. `ConfigServerApplication`（8888）
+3. `PermissionServiceApplication`（8083）
+4. `ArticleServiceApplication`（8084）、`TagServiceApplication`（8085）、`ReviewServiceApplication`（8086）
+5. `CommentServiceApplication`（8089）、`StatsServiceApplication`（8090）、`NotificationServiceApplication`（8091）、`AuditServiceApplication`（8092）
+6. `GatewayServiceApplication`（8080）
 
-## 三、WebStorm 启动前端
+访问 `http://localhost:8761` 确认服务已注册，再启动前端。搜索和文件功能分别依赖 Elasticsearch 与 MinIO，本地没有这些基础设施时可以暂不启动对应服务。
 
-在相邻的 `enterprise-blog-frontend` 仓库分别创建两个 npm 运行配置：
+## 3. WebStorm 启动前端
 
-| 页面 | package.json | 命令 | 地址 |
-| --- | --- | --- | --- |
-| 员工前台 | `web-portal/package.json` | `dev` | `http://localhost:5173` |
-| 管理端 | `web-admin/package.json` | `dev` | `http://localhost:5174` |
+前端仓库位于相邻目录 `enterprise-blog-frontend`，包含员工端 `web-portal` 和管理端 `web-admin`。两个应用分别创建 npm 配置，命令均为 `dev`，并设置以下环境变量：
 
-两个 Vite 开发服务器默认把 `/api` 代理到 `http://localhost:8080`，无需再配置跨域地址。
+```text
+VITE_AUTH_MODE=local
+VITE_MOCK_OIDC_TOKEN=local-dev-token
+VITE_API_PROXY_TARGET=http://localhost:8080
+```
 
-首次运行前分别在 `web-portal` 和 `web-admin` 目录执行 `npm install`。日常启动时，直接运行 WebStorm
-保存的 npm 配置即可。
+管理端可额外设置：
 
-## 四、启动检查
+```text
+VITE_PORTAL_URL=http://localhost:5173
+```
 
-- Gateway 健康检查：`http://localhost:8080/actuator/health`；
-- 员工前台首页能加载真实文章、分类、标签和专题；
-- 管理端首页能展示内容、互动、评论、订阅和通知概览；
-- 如果接口返回 500，优先查看 Gateway 日志中的目标服务名，再确认该服务是否已注册、是否使用 `local`
-  Profile，以及 PostgreSQL 密码环境变量是否存在。
+员工端可额外设置：
 
-IDEA 的个人运行配置可能包含本机密码，因此保留在本地 `.idea/workspace.xml`，不会提交到 Git。
+```text
+VITE_ADMIN_URL=http://localhost:5174
+```
+
+启动地址：
+
+| 应用 | 目录 | 地址 |
+| --- | --- | --- |
+| 员工端 | `web-portal` | `http://localhost:5173` |
+| 管理端 | `web-admin` | `http://localhost:5174` |
+
+首次访问会进入登录页，可选择三个本地演示账号：
+
+| 账号 | 身份 | 主要角色 |
+| --- | --- | --- |
+| `u-admin` | 平台管理员 | `ADMIN, REVIEWER, AUTHOR, READER` |
+| `u-author` | 技术作者 | `AUTHOR, READER` |
+| `u-reader` | 企业读者 | `READER` |
+
+登录无需密码。管理端允许三种身份完成验证，但只有 `u-admin` 能加载管理页面和管理接口；其他身份会进入无权限页。员工端与管理端会话分别保存在各自的 `localStorage`，只保存版本号和账号 ID，不保存模拟令牌。
+
+## 4. 重要安全说明
+
+本地演示登录仅用于开发和验收，不是生产认证方案。`VITE_MOCK_OIDC_TOKEN` 必须与 Gateway 的 `GATEWAY_DEV_MOCK_TOKEN` 一致，且都不能作为真实密钥提交或用于生产。
+
+生产环境必须使用企业 OIDC 和 Bearer JWT，不能启用 `dev` Profile，也不会显示演示账号。
+
+## 5. 启动检查
+
+- Gateway 健康检查：`http://localhost:8080/actuator/health`
+- 未登录访问任意业务路径时应跳转到 `/login?redirect=...`
+- 登录后刷新页面，会话应保持
+- 管理端使用 `u-author` 或 `u-reader` 时只显示无权限页
+- 如果接口返回 500，先检查 Gateway 日志中的目标服务名、Eureka 注册情况、数据库连接和 Redis 状态
+
+IDEA 和 WebStorm 的个人运行配置可能包含本机密码，应保留在本地 `.idea/workspace.xml`，不要提交到 Git。
