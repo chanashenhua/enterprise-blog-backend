@@ -65,7 +65,14 @@ public class ArticleService {
         );
     }
 
-    public ArticleResponse saveDraft(String authorId, SaveDraftRequest request) {
+    public ArticleResponse saveDraft(CallerContext caller, SaveDraftRequest request) {
+        if (caller.userId() == null || caller.userId().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated user is required");
+        }
+        if (!caller.roles().contains("AUTHOR") && !caller.roles().contains("ADMIN")) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "AUTHOR or ADMIN role is required");
+        }
+        String authorId = caller.userId();
         requireUserId(authorId);
         validateDraft(request.title(), request.contentJson());
         // 标签由标签服务统一维护，保存前拒绝不存在的标签，避免产生不可检索的脏关联。

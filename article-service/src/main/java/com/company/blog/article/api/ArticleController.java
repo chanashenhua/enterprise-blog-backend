@@ -40,10 +40,10 @@ public class ArticleController {
     @PostMapping("/drafts")
     /** 保存一篇草稿。作者身份来自网关注入的 {@code X-User-Id}，不接受客户端请求体伪造。 */
     public ArticleResponse saveDraft(
-            @RequestHeader("X-User-Id") String authorId,
+            @RequestHeader HttpHeaders headers,
             @RequestBody SaveDraftRequest request
     ) {
-        return articleService.saveDraft(authorId, request);
+        return articleService.saveDraft(CallerContext.from(headers), request);
     }
 
     @PostMapping("/{articleId}/submit-publish")

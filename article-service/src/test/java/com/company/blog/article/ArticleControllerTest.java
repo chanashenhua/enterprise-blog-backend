@@ -56,6 +56,7 @@ class ArticleControllerTest {
 
         MvcResult draft = mvc.perform(post("/api/articles/drafts")
                         .header("X-User-Id", "u-author")
+                        .header("X-User-Roles", "AUTHOR")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(draftRequest))
                 .andExpect(status().isOk())
@@ -101,6 +102,7 @@ class ArticleControllerTest {
         String title = "Team Review";
         MvcResult draft = mvc.perform(post("/api/articles/drafts")
                         .header("X-User-Id", "u-author")
+                        .header("X-User-Roles", "AUTHOR")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(draftRequest(title, contentJson(title))))
                 .andExpect(status().isOk())
@@ -123,6 +125,30 @@ class ArticleControllerTest {
         assertThat(articleOutbox.events).isEmpty();
         assertThat(reviewPolicyClient.evaluatedRequests).hasSize(1);
         assertThat(reviewTicketClient.ticketRequests).containsExactly(articleId);
+    }
+
+    @Test
+    void rejectsReaderAndAnonymousDraftsBeforeAnyWrite() throws Exception {
+        mvc.perform(post("/api/articles/drafts")
+                .header("X-User-Id", "u-reader").header("X-User-Roles", "READER")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(draftRequest("Rejected", contentJson("text"))))
+            .andExpect(status().isForbidden());
+        mvc.perform(post("/api/articles/drafts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(draftRequest("Anonymous", contentJson("text"))))
+            .andExpect(status().isUnauthorized());
+        assertThat(repository.findByAuthorId("u-reader")).isEmpty();
+        assertThat(tagValidationClient.validatedTagIds).isEmpty();
+    }
+
+    @Test
+    void administratorCanCreateDraft() throws Exception {
+        mvc.perform(post("/api/articles/drafts")
+                .header("X-User-Id", "u-admin").header("X-User-Roles", "ADMIN")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(draftRequest("Admin draft", contentJson("text"))))
+            .andExpect(status().isOk());
     }
 
     private static String contentJson(String title) throws Exception {

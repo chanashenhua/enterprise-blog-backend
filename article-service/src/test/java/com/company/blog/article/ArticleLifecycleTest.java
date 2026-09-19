@@ -38,8 +38,7 @@ class ArticleLifecycleTest {
 
     @Test
     void editsListsWithdrawsRepublishesAndDeletesAnArticle() {
-        String articleId = service.saveDraft(
-                "u-author",
+        String articleId = service.saveDraft(new com.company.blog.article.api.CallerContext("u-author", java.util.Set.of("AUTHOR"), java.util.Set.of(), java.util.Set.of()),
                 new SaveDraftRequest("第一版", content("第一版正文"), Set.of("java"), "engineering")
         ).id();
 
@@ -87,8 +86,7 @@ class ArticleLifecycleTest {
 
     @Test
     void refusesToDeleteArticleWhileReviewIsPending() {
-        String articleId = service.saveDraft(
-                "u-author",
+        String articleId = service.saveDraft(new com.company.blog.article.api.CallerContext("u-author", java.util.Set.of("AUTHOR"), java.util.Set.of(), java.util.Set.of()),
                 new SaveDraftRequest("待审核", content("待审核正文"), Set.of())
         ).id();
         service.submitForPublish(

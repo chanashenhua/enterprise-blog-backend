@@ -29,7 +29,7 @@ class ArticleReviewTicketRecoveryTest {
                 request -> true,
                 reviewTicketClient
         );
-        String articleId = service.saveDraft("u-author", new SaveDraftRequest(
+        String articleId = service.saveDraft(new com.company.blog.article.api.CallerContext("u-author", java.util.Set.of("AUTHOR"), java.util.Set.of(), java.util.Set.of()), new SaveDraftRequest(
                 "Retry review ticket",
                 "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Retry review ticket\"}]}]}",
                 Set.of("redis")

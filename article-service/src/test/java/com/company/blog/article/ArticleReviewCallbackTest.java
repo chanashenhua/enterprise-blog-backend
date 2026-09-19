@@ -50,6 +50,7 @@ class ArticleReviewCallbackTest {
         reviewPolicyClient.nextReviewRequired = true;
         MvcResult draft = mvc.perform(post("/api/articles/drafts")
                         .header("X-User-Id", "u-author")
+                        .header("X-User-Roles", "AUTHOR")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(draftRequest("Team Review")))
                 .andExpect(status().isOk())
@@ -82,7 +83,7 @@ class ArticleReviewCallbackTest {
     @Test
     void repeatedReviewApprovalCallbackIsIdempotent() {
         reviewPolicyClient.nextReviewRequired = true;
-        String articleId = articleService.saveDraft("u-author", new com.company.blog.article.api.SaveDraftRequest(
+        String articleId = articleService.saveDraft(new com.company.blog.article.api.CallerContext("u-author", java.util.Set.of("AUTHOR"), java.util.Set.of(), java.util.Set.of()), new com.company.blog.article.api.SaveDraftRequest(
                 "Retry-safe approval",
                 "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Retry-safe approval\"}]}]}",
                 Set.of("redis")
