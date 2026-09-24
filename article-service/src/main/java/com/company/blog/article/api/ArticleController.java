@@ -1,5 +1,6 @@
 package com.company.blog.article.api;
 
+import com.company.blog.article.domain.ArticleContentProjection;
 import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.http.HttpHeaders;
@@ -27,6 +28,15 @@ public class ArticleController {
         this.articleService = articleService;
     }
 
+    /** 使用保存时的同一渲染器预览，不写入草稿、版本或 Outbox。 */
+    @PostMapping("/preview")
+    public ArticleContentProjection preview(
+            @RequestHeader HttpHeaders headers,
+            @RequestBody PreviewArticleRequest request
+    ) {
+        return articleService.preview(CallerContext.from(headers), request.contentJson());
+    }
+
     @PutMapping("/{articleId}/draft")
     /** 修改草稿；撤回的文章修改后会重新进入草稿状态。 */
     public ArticleResponse updateDraft(
@@ -40,10 +50,10 @@ public class ArticleController {
     @PostMapping("/drafts")
     /** 保存一篇草稿。作者身份来自网关注入的 {@code X-User-Id}，不接受客户端请求体伪造。 */
     public ArticleResponse saveDraft(
-            @RequestHeader("X-User-Id") String authorId,
+            @RequestHeader HttpHeaders headers,
             @RequestBody SaveDraftRequest request
     ) {
-        return articleService.saveDraft(authorId, request);
+        return articleService.saveDraft(CallerContext.from(headers), request);
     }
 
     @PostMapping("/{articleId}/submit-publish")

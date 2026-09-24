@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
+import org.commonmark.parser.Parser;
+import org.commonmark.renderer.html.DefaultUrlSanitizer;
+import org.commonmark.renderer.html.HtmlRenderer;
+import org.commonmark.renderer.text.TextContentRenderer;
 
 /**
  * 从编辑器 JSON 生成的安全展示与检索投影。
@@ -13,10 +17,32 @@ import java.util.List;
  */
 public record ArticleContentProjection(String renderedHtml, String plainText) {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final Parser MARKDOWN = Parser.builder().build();
+    private static final HtmlRenderer HTML = HtmlRenderer.builder()
+            .escapeHtml(true).sanitizeUrls(true)
+            .urlSanitizer(new DefaultUrlSanitizer(List.of("http", "https", "mailto")))
+            .build();
+    private static final TextContentRenderer TEXT = TextContentRenderer.builder().build();
+    public static final int MAX_SOURCE_LENGTH = 100_000;
 
     public static ArticleContentProjection from(String contentJson) {
         try {
+            if (contentJson == null || contentJson.length() > 1_000_000) {
+                throw new IllegalArgumentException("Article content is missing or too large");
+            }
             JsonNode root = OBJECT_MAPPER.readTree(contentJson);
+            if (root != null && "markdown".equals(root.path("type").asText())) {
+                if (!root.path("version").isInt() || root.path("version").asInt() != 1
+                        || !root.path("source").isTextual()
+                        || root.path("source").asText().length() > MAX_SOURCE_LENGTH) {
+                    throw new IllegalArgumentException("Unsupported Markdown version or source");
+                }
+                var document = MARKDOWN.parse(root.path("source").asText());
+                return new ArticleContentProjection(HTML.render(document).trim(), TEXT.render(document).trim());
+            }
+            if (root == null || !"doc".equals(root.path("type").asText()) || !root.path("content").isArray()) {
+                throw new IllegalArgumentException("Unsupported article document format");
+            }
             ProjectionBuilder builder = new ProjectionBuilder();
             renderDocument(root, builder);
             return new ArticleContentProjection(builder.html().trim(), builder.plainText().trim());

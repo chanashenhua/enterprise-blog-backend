@@ -65,14 +65,14 @@ public class ArticleService {
         );
     }
 
-    public ArticleResponse saveDraft(String authorId, SaveDraftRequest request) {
-        requireUserId(authorId);
-        validateDraft(request.title(), request.contentJson());
+    public ArticleResponse saveDraft(CallerContext caller, SaveDraftRequest request) {
+        requireWriter(caller);
+        String authorId = caller.userId();
+        ArticleContentProjection content = validateDraft(request.title(), request.contentJson());
         // 标签由标签服务统一维护，保存前拒绝不存在的标签，避免产生不可检索的脏关联。
         tagValidationClient.validate(request.tagIds());
         tagValidationClient.validateCategory(request.categoryId());
         Article article = Article.draft(UUID.randomUUID().toString(), authorId, request.title());
-        ArticleContentProjection content = ArticleContentProjection.from(request.contentJson());
         StoredArticle storedArticle = new StoredArticle(
                 article,
                 request.contentJson(),
@@ -81,6 +81,20 @@ public class ArticleService {
                 request.categoryId()
         );
         return ArticleResponse.from(transactionService.saveDraft(storedArticle, authorId));
+    }
+
+    public ArticleContentProjection preview(CallerContext caller, String contentJson) {
+        requireWriter(caller);
+        return projectContent(contentJson);
+    }
+
+    private static void requireWriter(CallerContext caller) {
+        if (caller.userId() == null || caller.userId().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated user is required");
+        }
+        if (!caller.roles().contains("AUTHOR") && !caller.roles().contains("ADMIN")) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "AUTHOR or ADMIN role is required");
+        }
     }
 
     public ArticleResponse updateDraft(
@@ -209,12 +223,24 @@ public class ArticleService {
         }
     }
 
-    private static void validateDraft(String title, String contentJson) {
+    private static ArticleContentProjection validateDraft(String title, String contentJson) {
         if (title == null || title.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "title is required");
         }
         if (contentJson == null || contentJson.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "contentJson is required");
+        }
+        if (title.length() > 200) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "title must not exceed 200 characters");
+        }
+        return projectContent(contentJson);
+    }
+
+    private static ArticleContentProjection projectContent(String contentJson) {
+        try {
+            return ArticleContentProjection.from(contentJson);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or oversized article content", ex);
         }
     }
 

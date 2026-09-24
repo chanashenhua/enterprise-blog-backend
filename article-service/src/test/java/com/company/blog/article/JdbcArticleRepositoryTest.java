@@ -9,14 +9,39 @@ import com.company.blog.article.domain.Article;
 import com.company.blog.article.domain.ArticleContentProjection;
 import com.company.blog.article.domain.ArticleStatus;
 import com.company.blog.article.domain.ArticleVisibilityType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.temporal.ChronoUnit;
 import java.util.Set;
+import java.util.Map;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 class JdbcArticleRepositoryTest {
+    @Test
+    void preservesMarkdownSourceProjectionAndVersionAcrossRepositoryRestart() throws Exception {
+        var dataSource = new DriverManagerDataSource("jdbc:h2:mem:markdown_repository;MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "sa", "");
+        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
+        var template = new JdbcTemplate(dataSource);
+        var repository = new JdbcArticleRepository(template);
+        String source = "## Markdown\n\n**重点**\n\n```java\n  int n = 1;\n```\n\n";
+        String contentJson = new ObjectMapper().writeValueAsString(Map.of("type", "markdown", "version", 1, "source", source));
+        var projection = ArticleContentProjection.from(contentJson);
+        var stored = new StoredArticle(Article.draft("markdown-1", "u-author", "Markdown"), contentJson, projection, Set.of(), null);
+        repository.save(stored);
+        repository.appendContentVersion(stored, "u-author");
+        var reloadedRepository = new JdbcArticleRepository(template);
+        var restored = reloadedRepository.findById("markdown-1").orElseThrow();
+        assertThat(restored.contentJson()).isEqualTo(contentJson);
+        assertThat(restored.content()).isEqualTo(projection);
+        assertThat(reloadedRepository.findContentVersions("markdown-1")).singleElement().satisfies(version -> {
+            assertThat(version.contentJson()).isEqualTo(contentJson);
+            assertThat(version.renderedHtml()).isEqualTo(projection.renderedHtml());
+            assertThat(version.plainText()).isEqualTo(projection.plainText());
+        });
+    }
+
     @Test
     void restoresTheCompleteArticleAfterRepositoryIsRecreated() {
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
