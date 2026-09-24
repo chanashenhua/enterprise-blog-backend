@@ -3,6 +3,7 @@ package com.company.blog.article;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -47,6 +48,54 @@ class ArticleControllerTest {
             reviewTicketClient
     );
     private final MockMvc mvc = MockMvcBuilders.standaloneSetup(new ArticleController(articleService)).build();
+
+    @Test
+    void previewIsReadOnlyAndMatchesSavedUpdatedAndFetchedMarkdown() throws Exception {
+        String source = "# 标题\n\n**重点**\n\n```java\nint x = 1;\n```\n";
+        String content = OBJECT_MAPPER.writeValueAsString(Map.of("type", "markdown", "version", 1, "source", source));
+        MvcResult preview = mvc.perform(post("/api/articles/preview")
+                .header("X-User-Id", "u-author").header("X-User-Roles", "AUTHOR")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(OBJECT_MAPPER.writeValueAsString(Map.of("contentJson", content))))
+            .andExpect(status().isOk()).andReturn();
+        String html = OBJECT_MAPPER.readTree(preview.getResponse().getContentAsByteArray()).path("renderedHtml").asText();
+        assertThat(repository.findByAuthorId("u-author")).isEmpty();
+        assertThat(articleOutbox.events).isEmpty();
+        assertThat(tagValidationClient.validatedTagIds).isEmpty();
+
+        MvcResult draft = mvc.perform(post("/api/articles/drafts")
+                .header("X-User-Id", "u-author").header("X-User-Roles", "AUTHOR")
+                .contentType(MediaType.APPLICATION_JSON).content(draftRequest("Markdown", content)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.contentJson").value(content))
+            .andExpect(jsonPath("$.renderedHtml").value(html)).andReturn();
+        String id = OBJECT_MAPPER.readTree(draft.getResponse().getContentAsByteArray()).path("id").asText();
+        mvc.perform(put("/api/articles/{id}/draft", id)
+                .header("X-User-Id", "u-author").header("X-User-Roles", "AUTHOR")
+                .contentType(MediaType.APPLICATION_JSON).content(draftRequest("Markdown 修改", content)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.renderedHtml").value(html));
+        mvc.perform(get("/api/articles/{id}", id).header("X-User-Id", "u-author").header("X-User-Roles", "AUTHOR"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.contentJson").value(content))
+            .andExpect(jsonPath("$.renderedHtml").value(html));
+    }
+
+    @Test
+    void previewRequiresWriterAndInvalidPayloadIsBadRequest() throws Exception {
+        String request = OBJECT_MAPPER.writeValueAsString(Map.of("contentJson", contentJson("Legacy")));
+        mvc.perform(post("/api/articles/preview").contentType(MediaType.APPLICATION_JSON).content(request))
+            .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/articles/preview").header("X-User-Id", "u-reader").header("X-User-Roles", "READER")
+                .contentType(MediaType.APPLICATION_JSON).content(request)).andExpect(status().isForbidden());
+        mvc.perform(post("/api/articles/preview").header("X-User-Id", "u-admin").header("X-User-Roles", "ADMIN")
+                .contentType(MediaType.APPLICATION_JSON).content(request)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.renderedHtml").value("<p>Legacy</p>"));
+        mvc.perform(post("/api/articles/preview").header("X-User-Id", "u-author").header("X-User-Roles", "AUTHOR")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"contentJson\":\"{broken\"}"))
+            .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/articles/drafts").header("X-User-Id", "u-author").header("X-User-Roles", "AUTHOR")
+                .contentType(MediaType.APPLICATION_JSON).content(draftRequest("Invalid", "{broken")))
+            .andExpect(status().isBadRequest());
+        assertThat(repository.findByAuthorId("u-author")).isEmpty();
+    }
 
     @Test
     void createsDraftPublishesAndFetchesArticle() throws Exception {

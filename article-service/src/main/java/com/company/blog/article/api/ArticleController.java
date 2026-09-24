@@ -1,5 +1,6 @@
 package com.company.blog.article.api;
 
+import com.company.blog.article.domain.ArticleContentProjection;
 import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.http.HttpHeaders;
@@ -25,6 +26,15 @@ public class ArticleController {
 
     public ArticleController(ArticleService articleService) {
         this.articleService = articleService;
+    }
+
+    /** 使用保存时的同一渲染器预览，不写入草稿、版本或 Outbox。 */
+    @PostMapping("/preview")
+    public ArticleContentProjection preview(
+            @RequestHeader HttpHeaders headers,
+            @RequestBody PreviewArticleRequest request
+    ) {
+        return articleService.preview(CallerContext.from(headers), request.contentJson());
     }
 
     @PutMapping("/{articleId}/draft")

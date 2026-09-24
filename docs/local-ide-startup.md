@@ -99,3 +99,11 @@ VITE_ADMIN_URL=http://localhost:5174
 - 如果接口返回 500，先检查 Gateway 日志中的目标服务名、Eureka 注册情况、数据库连接和 Redis 状态
 
 IDEA 和 WebStorm 的个人运行配置可能包含本机密码，应保留在本地 `.idea/workspace.xml`，不要提交到 Git。
+
+## 6. Markdown 编辑器启动检查
+
+更新本次代码后，在 IDEA 重新加载 Maven（文章服务新增 CommonMark 依赖），重新启动 `ArticleServiceApplication`。前端开发服务会自动更新，生产构建需要重新构建。
+
+使用 `u-author` 或 `u-admin` 进入「写文章」，测试标题、正文、对照预览、分类标签选择和保存后再次编辑。预览与保存依赖文章服务，分类标签依赖标签服务，并通过 Gateway 请求；只启动前端不能完成这些功能。
+
+当前编辑器尚未自动保存，离开前请保存草稿。组织范围仍使用 ID 输入；不会因为保存草稿而改变发布范围。详见 [文章编辑器接口](api/article-editor.md) 和 [第五阶段计划](phase-5-plan.md)。
