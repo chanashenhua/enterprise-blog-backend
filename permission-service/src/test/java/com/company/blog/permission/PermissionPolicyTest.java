@@ -48,7 +48,7 @@ class PermissionPolicyTest {
     @Test
     void allowsPublishForAuthor() {
         PermissionDecision decision = policy.check(request(
-                Set.of("AUTHOR"), Set.of(), Set.of(), "article.publish", "u-2", "company", Set.of()
+                Set.of("AUTHOR"), Set.of(), Set.of(), "article.publish", "u-1", "company", Set.of()
         ));
 
         assertThat(decision.allowed()).isTrue();
@@ -98,6 +98,22 @@ class PermissionPolicyTest {
 
         assertThat(decision.allowed()).isFalse();
         assertThat(decision.reason()).isEqualTo("UNSUPPORTED_ACTION");
+    }
+
+    @Test
+    void authorMustOwnArticleAndBelongToEverySelectedOrganization() {
+        assertThat(policy.check(request(Set.of("AUTHOR"), Set.of("d-1"), Set.of("t-1"), "article.publish", "u-1", "team", Set.of("t-1"))).allowed()).isTrue();
+        assertThat(policy.check(request(Set.of("AUTHOR"), Set.of("d-1"), Set.of("t-1"), "article.publish", "u-1", "department", Set.of("d-1"))).allowed()).isTrue();
+        assertThat(policy.check(request(Set.of("AUTHOR"), Set.of("d-1"), Set.of("t-1"), "article.publish", "u-1", "team", Set.of("t-1", "t-2"))).reason()).isEqualTo("USER_OUTSIDE_TARGET_ORG");
+        assertThat(policy.check(request(Set.of("AUTHOR"), Set.of("d-1"), Set.of("t-1"), "article.publish", "u-1", "department", Set.of("d-2"))).allowed()).isFalse();
+        assertThat(policy.check(request(Set.of("AUTHOR"), Set.of(), Set.of(), "article.publish", "u-2", "company", Set.of())).reason()).isEqualTo("NOT_RESOURCE_OWNER");
+    }
+
+    @Test
+    void administratorsCanPublishAcrossOrganizationsAndReadersCannotPublish() {
+        assertThat(policy.check(request(Set.of("ADMIN"), Set.of(), Set.of(), "article.publish", "u-2", "team", Set.of("t-1", "t-2"))).allowed()).isTrue();
+        assertThat(policy.check(request(Set.of("READER"), Set.of(), Set.of(), "article.publish", "u-1", "company", Set.of())).reason()).isEqualTo("ROLE_NOT_ALLOWED");
+        assertThat(policy.check(request(Set.of("ADMIN"), Set.of(), Set.of(), "article.publish", "u-2", "company", Set.of("t-1"))).allowed()).isFalse();
     }
 
     private static PermissionCheckRequest request(

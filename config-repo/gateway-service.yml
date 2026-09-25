@@ -9,6 +9,10 @@ spring:
   cloud:
     gateway:
       routes:
+        - id: org-directory-service
+          uri: lb://org-service
+          predicates:
+            - Path=/api/organizations/publish-options
         - id: audit-admin-service
           uri: lb://audit-service
           predicates:

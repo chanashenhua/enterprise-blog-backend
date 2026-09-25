@@ -1,0 +1,17 @@
+# 与其他本地业务服务共用已初始化的数据库；不自动执行迁移。
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD}
+  flyway:
+    enabled: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+blog:
+  internal:
+    org-token: ${INTERNAL_ORG_TOKEN:local-org-token}

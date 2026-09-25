@@ -24,7 +24,8 @@ class ArticleReviewFailureTest {
                 (callerContext, article, request) -> { },
                 events -> { },
                 request -> true,
-                (article, request) -> { throw new IllegalStateException("review-service down"); }
+                (article, request) -> { throw new IllegalStateException("review-service down"); },
+                (visibilityType, targetOrgIds) -> { }
         );
         String articleId = service.saveDraft(new com.company.blog.article.api.CallerContext("u-author", java.util.Set.of("AUTHOR"), java.util.Set.of(), java.util.Set.of()), new com.company.blog.article.api.SaveDraftRequest(
                 "Team Review",

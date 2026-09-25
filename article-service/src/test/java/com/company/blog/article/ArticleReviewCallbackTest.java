@@ -41,7 +41,8 @@ class ArticleReviewCallbackTest {
             (callerContext, article, request) -> { },
             outbox,
             reviewPolicyClient,
-            (article, request) -> { }
+            (article, request) -> { },
+            (visibilityType, targetOrgIds) -> { }
     );
     private final MockMvc mvc = MockMvcBuilders.standaloneSetup(new ArticleController(articleService), new InternalArticleController(articleService, "test-token")).build();
 

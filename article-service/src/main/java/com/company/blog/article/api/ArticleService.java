@@ -4,6 +4,7 @@ import com.company.blog.article.domain.Article;
 import com.company.blog.article.domain.ArticleContentProjection;
 import com.company.blog.article.domain.ArticleStatus;
 import com.company.blog.article.domain.ArticleVisibilityType;
+import com.company.blog.common.security.ArticlePublishScope;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -26,6 +27,7 @@ public class ArticleService {
     private final ArticleTransactionService transactionService;
     private final ReviewPolicyClient reviewPolicyClient;
     private final ReviewTicketClient reviewTicketClient;
+    private final OrgValidationClient orgValidationClient;
 
     @Autowired
     public ArticleService(
@@ -34,7 +36,8 @@ public class ArticleService {
             PermissionCheckClient permissionCheckClient,
             ArticleTransactionService transactionService,
             ReviewPolicyClient reviewPolicyClient,
-            ReviewTicketClient reviewTicketClient
+            ReviewTicketClient reviewTicketClient,
+            OrgValidationClient orgValidationClient
     ) {
         this.repository = repository;
         this.tagValidationClient = tagValidationClient;
@@ -42,6 +45,7 @@ public class ArticleService {
         this.transactionService = transactionService;
         this.reviewPolicyClient = reviewPolicyClient;
         this.reviewTicketClient = reviewTicketClient;
+        this.orgValidationClient = orgValidationClient;
     }
 
     /**
@@ -53,7 +57,8 @@ public class ArticleService {
             PermissionCheckClient permissionCheckClient,
             ArticleOutbox articleOutbox,
             ReviewPolicyClient reviewPolicyClient,
-            ReviewTicketClient reviewTicketClient
+            ReviewTicketClient reviewTicketClient,
+            OrgValidationClient orgValidationClient
     ) {
         this(
                 repository,
@@ -61,7 +66,8 @@ public class ArticleService {
                 permissionCheckClient,
                 new ArticleTransactionService(repository, articleOutbox),
                 reviewPolicyClient,
-                reviewTicketClient
+                reviewTicketClient,
+                orgValidationClient
         );
     }
 
@@ -119,10 +125,15 @@ public class ArticleService {
     }
 
     public ArticleResponse submitForPublish(String articleId, CallerContext callerContext, SubmitPublishRequest request) {
+        requireWriter(callerContext);
+        ArticleVisibilityType visibilityType = parseVisibilityType(request.visibilityType());
+        String scopeError = ArticlePublishScope.validationError(visibilityType.name(), request.targetOrgIds());
+        if (scopeError != null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, scopeError);
         StoredArticle storedArticle = findStoredArticle(articleId);
         Article article = storedArticle.article();
         permissionCheckClient.requirePublishAllowed(callerContext, article, request);
-        ArticleVisibilityType visibilityType = parseVisibilityType(request.visibilityType());
+        // 校验必须发生在文章状态、审核单及 Outbox 的任何写入之前；组织服务故障时拒绝范围发布。
+        orgValidationClient.validate(visibilityType.name(), request.targetOrgIds());
         boolean reviewRequired = reviewPolicyClient.reviewRequired(request);
         // 全公司可见文章或不要求审核的范围可直接发布；其余情况先创建审核单。
         if (visibilityType == ArticleVisibilityType.COMPANY || !reviewRequired) {

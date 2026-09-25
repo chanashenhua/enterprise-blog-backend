@@ -1,6 +1,10 @@
 server:
   port: 8082
 
+blog:
+  internal:
+    org-token: ${INTERNAL_ORG_TOKEN:}
+
 spring:
   application:
     name: org-service
