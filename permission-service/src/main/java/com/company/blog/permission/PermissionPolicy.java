@@ -1,6 +1,7 @@
 package com.company.blog.permission;
 
 import com.company.blog.permission.api.PermissionCheckRequest;
+import com.company.blog.common.security.ArticlePublishScope;
 import java.util.Set;
 
 /**
@@ -17,9 +18,7 @@ public class PermissionPolicy {
 
         return switch (request.action()) {
             case "article.read" -> checkArticleRead(request);
-            case "article.publish" -> hasAnyRole(request.roles(), "AUTHOR", "ADMIN")
-                    ? PermissionDecision.allow()
-                    : PermissionDecision.deny("ROLE_NOT_ALLOWED");
+            case "article.publish" -> checkArticlePublish(request);
             case "article.review" -> hasAnyRole(request.roles(), "REVIEWER", "ADMIN")
                     ? PermissionDecision.allow()
                     : PermissionDecision.deny("ROLE_NOT_ALLOWED");
@@ -42,6 +41,16 @@ public class PermissionPolicy {
                     : PermissionDecision.deny("USER_OUTSIDE_TARGET_ORG");
             default -> PermissionDecision.deny("UNSUPPORTED_VISIBILITY");
         };
+    }
+
+    private PermissionDecision checkArticlePublish(PermissionCheckRequest request) {
+        if (!ArticlePublishScope.canWrite(request.roles())) return PermissionDecision.deny("ROLE_NOT_ALLOWED");
+        if (!canEditArticle(request)) return PermissionDecision.deny("NOT_RESOURCE_OWNER");
+        String error = ArticlePublishScope.validationError(request.visibilityType(), request.targetOrgIds());
+        if (error != null) return PermissionDecision.deny(error);
+        boolean allowed = request.targetOrgIds().stream().allMatch(id -> ArticlePublishScope.allowsTarget(
+                request.visibilityType(), id, request.roles(), request.departmentIds(), request.teamIds()));
+        return allowed ? PermissionDecision.allow() : PermissionDecision.deny("USER_OUTSIDE_TARGET_ORG");
     }
 
     private static boolean canEditArticle(PermissionCheckRequest request) {

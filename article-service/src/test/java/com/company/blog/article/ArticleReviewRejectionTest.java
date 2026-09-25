@@ -21,7 +21,8 @@ class ArticleReviewRejectionTest {
                 (callerContext, article, request) -> { },
                 events -> { },
                 request -> true,
-                (article, request) -> { }
+                (article, request) -> { },
+                (visibilityType, targetOrgIds) -> { }
         );
         String articleId = service.saveDraft(new com.company.blog.article.api.CallerContext("u-author", java.util.Set.of("AUTHOR"), java.util.Set.of(), java.util.Set.of()), new SaveDraftRequest(
                 "Rejected review",

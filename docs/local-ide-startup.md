@@ -38,7 +38,7 @@ POSTGRES_PASSWORD=<你的本机 PostgreSQL 密码>
 
 1. `EurekaServerApplication`（8761）
 2. `ConfigServerApplication`（8888）
-3. `PermissionServiceApplication`（8083）
+3. `OrgServiceApplication`（8082）、`PermissionServiceApplication`（8083）
 4. `ArticleServiceApplication`（8084）、`TagServiceApplication`（8085）、`ReviewServiceApplication`（8086）
 5. `CommentServiceApplication`（8089）、`StatsServiceApplication`（8090）、`NotificationServiceApplication`（8091）、`AuditServiceApplication`（8092）
 6. `GatewayServiceApplication`（8080）
@@ -106,4 +106,12 @@ IDEA 和 WebStorm 的个人运行配置可能包含本机密码，应保留在�
 
 使用 `u-author` 或 `u-admin` 进入「写文章」，测试标题、正文、对照预览、分类标签选择和保存后再次编辑。预览与保存依赖文章服务，分类标签依赖标签服务，并通过 Gateway 请求；只启动前端不能完成这些功能。
 
-当前编辑器尚未自动保存，离开前请保存草稿。组织范围仍使用 ID 输入；不会因为保存草稿而改变发布范围。详见 [文章编辑器接口](api/article-editor.md) 和 [第五阶段计划](phase-5-plan.md)。
+当前编辑器尚未自动保存，离开前请保存草稿。组织范围支持按名称搜索多选；不会因为保存草稿而改变发布范围。详见 [文章编辑器接口](api/article-editor.md) 和 [第五阶段计划](phase-5-plan.md)。
+
+## 7. 组织范围选择启动检查
+
+本次更新后重新加载 Maven，重启 Config Server、Gateway、Permission Service 和 Article Service，并启动 `OrgServiceApplication`（8082，`local` Profile，使用上面的数据库环境变量）。组织服务读取既有部门／团队数据，本模块没有新增数据库迁移或修改测试数据。
+
+`org-service-local.yml` 和 `article-service-local.yml` 已使用相同的本地开发内部令牌 `local-org-token`。若自定义 `INTERNAL_ORG_TOKEN`，两服务必须设置相同的值。非本地环境必须配置独立密钥，不能沿用这个公开的演示值。文章服务本地通过 `http://localhost:8082` 校验组织，前端仍只请求 Gateway。
+
+以作者身份进入编辑器，选择「指定团队」，应显示本人所属的 Search Team；管理员可选择全部现存部门和团队。提交时仍由后端核对作者身份、组织范围并执行原审核策略。组织服务不可用时，指定组织发布会被阻止，但正文可继续保存草稿。接口与安全边界见 [组织范围说明](api/organization-scope.md)。

@@ -27,7 +27,8 @@ class ArticleLifecycleTest {
             (callerContext, article, request) -> { },
             outbox,
             request -> request.reviewRequired(),
-            (article, request) -> { }
+            (article, request) -> { },
+            (visibilityType, targetOrgIds) -> { }
     );
     private final CallerContext author = new CallerContext(
             "u-author",

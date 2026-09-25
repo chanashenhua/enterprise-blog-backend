@@ -45,7 +45,8 @@ class ArticleControllerTest {
             permissionCheckClient,
             articleOutbox,
             reviewPolicyClient,
-            reviewTicketClient
+            reviewTicketClient,
+            (visibilityType, targetOrgIds) -> { }
     );
     private final MockMvc mvc = MockMvcBuilders.standaloneSetup(new ArticleController(articleService)).build();
 

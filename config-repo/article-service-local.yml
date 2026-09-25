@@ -10,7 +10,10 @@ spring:
     enabled: false
 
 blog:
+  internal:
+    org-token: ${INTERNAL_ORG_TOKEN:local-org-token}
   services:
+    org-service-url: http://localhost:8082
     permission-service-url: http://localhost:8083
     tag-service-url: http://localhost:8085
     review-service-url: http://localhost:8086
