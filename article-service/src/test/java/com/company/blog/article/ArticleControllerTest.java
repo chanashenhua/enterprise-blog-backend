@@ -120,7 +120,8 @@ class ArticleControllerTest {
         String publishRequest = OBJECT_MAPPER.writeValueAsString(Map.of(
                 "visibilityType", "COMPANY",
                 "targetOrgIds", List.of(),
-                "reviewRequired", false
+                "reviewRequired", false,
+                "expectedRevision", 1
         ));
 
         mvc.perform(post("/api/articles/{articleId}/submit-publish", articleId)
@@ -161,7 +162,8 @@ class ArticleControllerTest {
         String publishRequest = OBJECT_MAPPER.writeValueAsString(Map.of(
                 "visibilityType", "TEAM",
                 "targetOrgIds", List.of("t-search"),
-                "reviewRequired", false
+                "reviewRequired", false,
+                "expectedRevision", 1
         ));
 
         mvc.perform(post("/api/articles/{articleId}/submit-publish", articleId)
@@ -201,6 +203,44 @@ class ArticleControllerTest {
             .andExpect(status().isOk());
     }
 
+    @Test
+    void draftAndPublishRequireRevisionAndReturnConflictForStaleWrites() throws Exception {
+        String content = contentJson("初稿");
+        MvcResult created = mvc.perform(post("/api/articles/drafts")
+                .header("X-User-Id", "u-author").header("X-User-Roles", "AUTHOR")
+                .contentType(MediaType.APPLICATION_JSON).content(draftRequest("初稿", content)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.revision").value(1))
+                .andExpect(jsonPath("$.updatedAt").exists()).andReturn();
+        String id = OBJECT_MAPPER.readTree(created.getResponse().getContentAsByteArray()).path("id").asText();
+        String missingRevision = OBJECT_MAPPER.writeValueAsString(Map.of("title", "修改", "contentJson", content));
+        mvc.perform(put("/api/articles/{id}/draft", id).header("X-User-Id", "u-author")
+                .contentType(MediaType.APPLICATION_JSON).content(missingRevision)).andExpect(status().isBadRequest());
+        for (long revision : new long[]{0, -1}) {
+            mvc.perform(put("/api/articles/{id}/draft", id).header("X-User-Id", "u-author")
+                    .contentType(MediaType.APPLICATION_JSON).content(OBJECT_MAPPER.writeValueAsString(Map.of(
+                            "title", "修改", "contentJson", content, "expectedRevision", revision))))
+                    .andExpect(status().isBadRequest());
+        }
+        mvc.perform(post("/api/articles/{id}/submit-publish", id)
+                .header("X-User-Id", "u-author").header("X-User-Roles", "AUTHOR")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"visibilityType\":\"COMPANY\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(put("/api/articles/{id}/draft", id).header("X-User-Id", "u-author")
+                .contentType(MediaType.APPLICATION_JSON).content(draftRequest("最新稿", content)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.revision").value(2));
+        mvc.perform(put("/api/articles/{id}/draft", id).header("X-User-Id", "u-author")
+                .contentType(MediaType.APPLICATION_JSON).content(draftRequest("过期稿", content)))
+                .andExpect(status().isConflict());
+        mvc.perform(post("/api/articles/{id}/submit-publish", id)
+                .header("X-User-Id", "u-author").header("X-User-Roles", "AUTHOR")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"visibilityType\":\"COMPANY\",\"expectedRevision\":1}"))
+                .andExpect(status().isConflict());
+        assertThat(articleOutbox.events).isEmpty();
+        assertThat(reviewTicketClient.ticketRequests).isEmpty();
+        assertThat(repository.findById(id).orElseThrow().article().title()).isEqualTo("最新稿");
+        assertThat(repository.findContentVersions(id)).hasSize(2);
+    }
+
     private static String contentJson(String title) throws Exception {
         return OBJECT_MAPPER.writeValueAsString(Map.of(
                 "type", "doc",
@@ -215,7 +255,8 @@ class ArticleControllerTest {
         return OBJECT_MAPPER.writeValueAsString(Map.of(
                 "title", title,
                 "contentJson", contentJson,
-                "tagIds", List.of("redis")
+                "tagIds", List.of("redis"),
+                "expectedRevision", 1
         ));
     }
 

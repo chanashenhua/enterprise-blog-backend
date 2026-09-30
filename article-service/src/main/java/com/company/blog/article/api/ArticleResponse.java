@@ -3,6 +3,7 @@ package com.company.blog.article.api;
 import com.company.blog.article.domain.Article;
 import com.company.blog.article.domain.ArticleContentProjection;
 import java.util.Set;
+import java.time.Instant;
 
 public record ArticleResponse(
         String id,
@@ -15,7 +16,9 @@ public record ArticleResponse(
         String categoryId,
         String contentJson,
         String renderedHtml,
-        String plainText
+        String plainText,
+        long revision,
+        Instant updatedAt
 ) {
     static ArticleResponse from(StoredArticle storedArticle) {
         Article article = storedArticle.article();
@@ -31,7 +34,9 @@ public record ArticleResponse(
                 storedArticle.categoryId(),
                 storedArticle.contentJson(),
                 content.renderedHtml(),
-                content.plainText()
+                content.plainText(),
+                storedArticle.revision(),
+                article.updatedAt()
         );
     }
 }

@@ -12,6 +12,9 @@ import java.util.Optional;
 public interface ArticleRepository {
     void save(StoredArticle article);
 
+    /** 原子创建；幂等键对应文章已存在时不修改任何内容。 */
+    boolean insertDraftIfAbsent(StoredArticle article);
+
     Optional<StoredArticle> findById(String articleId);
 
     Optional<StoredArticle> findByIdForUpdate(String articleId);
@@ -27,4 +30,6 @@ public interface ArticleRepository {
     ArticleContentVersion appendContentVersion(StoredArticle article, String createdBy);
 
     List<ArticleContentVersion> findContentVersions(String articleId);
+
+    Optional<ArticleContentVersion> findLatestContentVersion(String articleId);
 }

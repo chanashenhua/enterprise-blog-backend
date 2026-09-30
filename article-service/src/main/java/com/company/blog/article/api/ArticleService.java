@@ -8,6 +8,7 @@ import com.company.blog.common.security.ArticlePublishScope;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.nio.charset.StandardCharsets;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -78,7 +79,7 @@ public class ArticleService {
         // 标签由标签服务统一维护，保存前拒绝不存在的标签，避免产生不可检索的脏关联。
         tagValidationClient.validate(request.tagIds());
         tagValidationClient.validateCategory(request.categoryId());
-        Article article = Article.draft(UUID.randomUUID().toString(), authorId, request.title());
+        Article article = Article.draft(draftId(authorId, request.clientDraftId()), authorId, request.title());
         StoredArticle storedArticle = new StoredArticle(
                 article,
                 request.contentJson(),
@@ -86,7 +87,7 @@ public class ArticleService {
                 request.tagIds(),
                 request.categoryId()
         );
-        return ArticleResponse.from(transactionService.saveDraft(storedArticle, authorId));
+        return ArticleResponse.from(transactionService.saveDraft(storedArticle, authorId, request.autosave()));
     }
 
     public ArticleContentProjection preview(CallerContext caller, String contentJson) {
@@ -109,6 +110,7 @@ public class ArticleService {
             UpdateDraftRequest request
     ) {
         requireUserId(callerContext.userId());
+        requireRevision(request.expectedRevision());
         validateDraft(request.title(), request.contentJson());
         StoredArticle storedArticle = findStoredArticle(articleId);
         permissionCheckClient.requireEditAllowed(callerContext, storedArticle.article());
@@ -120,12 +122,15 @@ public class ArticleService {
                 request.contentJson(),
                 request.tagIds(),
                 request.categoryId(),
-                callerContext.userId()
+                callerContext.userId(),
+                request.expectedRevision(),
+                request.autosave()
         ));
     }
 
     public ArticleResponse submitForPublish(String articleId, CallerContext callerContext, SubmitPublishRequest request) {
         requireWriter(callerContext);
+        requireRevision(request.expectedRevision());
         ArticleVisibilityType visibilityType = parseVisibilityType(request.visibilityType());
         String scopeError = ArticlePublishScope.validationError(visibilityType.name(), request.targetOrgIds());
         if (scopeError != null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, scopeError);
@@ -140,14 +145,18 @@ public class ArticleService {
             return ArticleResponse.from(transactionService.publish(
                     articleId,
                     visibilityType,
-                    request.targetOrgIds()
+                    request.targetOrgIds(),
+                    request.expectedRevision(),
+                    callerContext.userId()
             ));
         }
 
         StoredArticle pendingArticle = transactionService.requestReview(
                 articleId,
                 visibilityType,
-                request.targetOrgIds()
+                request.targetOrgIds(),
+                request.expectedRevision(),
+                callerContext.userId()
         );
         reviewTicketClient.createTicket(pendingArticle.article(), request);
         return ArticleResponse.from(pendingArticle);
@@ -258,6 +267,24 @@ public class ArticleService {
     private static void requireUserId(String userId) {
         if (userId == null || userId.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "X-User-Id is required");
+        }
+    }
+
+    private static void requireRevision(Long revision) {
+        if (revision == null || revision < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "expectedRevision must be a positive integer");
+        }
+    }
+
+    private static String draftId(String authorId, String clientDraftId) {
+        if (clientDraftId == null) return UUID.randomUUID().toString();
+        try {
+            UUID id = UUID.fromString(clientDraftId);
+            if (!id.toString().equalsIgnoreCase(clientDraftId)) throw new IllegalArgumentException();
+            return UUID.nameUUIDFromBytes(("article-draft:" + authorId.length() + ":" + authorId + ":" + id)
+                    .getBytes(StandardCharsets.UTF_8)).toString();
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "clientDraftId must be a UUID", ex);
         }
     }
 }
