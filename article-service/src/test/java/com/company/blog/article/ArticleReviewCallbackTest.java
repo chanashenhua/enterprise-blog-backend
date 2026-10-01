@@ -65,7 +65,8 @@ class ArticleReviewCallbackTest {
                         .content(OBJECT_MAPPER.writeValueAsString(Map.of(
                                 "visibilityType", "TEAM",
                                 "targetOrgIds", List.of("t-search"),
-                                "reviewRequired", false
+                                "reviewRequired", false,
+                                "expectedRevision", 1
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PENDING_REVIEW"));
@@ -92,7 +93,7 @@ class ArticleReviewCallbackTest {
         articleService.submitForPublish(
                 articleId,
                 new CallerContext("u-author", Set.of("AUTHOR"), Set.of(), Set.of("t-search")),
-                new SubmitPublishRequest("TEAM", Set.of("t-search"), false)
+                new SubmitPublishRequest("TEAM", Set.of("t-search"), false, 1L)
         );
         String reviewRequestId = repository.findById(articleId).orElseThrow().article().reviewRequestId();
 

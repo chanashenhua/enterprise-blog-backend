@@ -53,7 +53,9 @@ class ArticleTransactionServiceTest {
         assertThatThrownBy(() -> transactionService.publish(
                 "a-transaction",
                 ArticleVisibilityType.COMPANY,
-                Set.of()
+                Set.of(),
+                1L,
+                "u-author"
         )).isInstanceOf(IllegalStateException.class)
                 .hasMessage("simulated outbox failure");
 

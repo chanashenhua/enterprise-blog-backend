@@ -13,7 +13,8 @@ public record StoredArticle(
         String contentJson,
         ArticleContentProjection content,
         Set<String> tagIds,
-        String categoryId
+        String categoryId,
+        long revision
 ) {
     public StoredArticle {
         Objects.requireNonNull(article, "article must not be null");
@@ -21,6 +22,12 @@ public record StoredArticle(
         Objects.requireNonNull(content, "content must not be null");
         tagIds = tagIds == null ? Set.of() : Set.copyOf(tagIds);
         categoryId = categoryId == null || categoryId.isBlank() ? null : categoryId;
+        if (revision < 1) throw new IllegalArgumentException("revision must be positive");
+    }
+
+    public StoredArticle(Article article, String contentJson, ArticleContentProjection content,
+                         Set<String> tagIds, String categoryId) {
+        this(article, contentJson, content, tagIds, categoryId, 1L);
     }
 
     public StoredArticle(

@@ -26,7 +26,7 @@ class ArticleOrgPublishTest {
         for (HttpStatus status : new HttpStatus[]{HttpStatus.BAD_REQUEST, HttpStatus.SERVICE_UNAVAILABLE}) {
             String id = draft();
             doThrow(new ResponseStatusException(status, "Invalid org")).when(organizations).validate("TEAM", Set.of("t-search"));
-            assertThatThrownBy(() -> service.submitForPublish(id, author, new SubmitPublishRequest("TEAM", Set.of("t-search"), true)))
+            assertThatThrownBy(() -> service.submitForPublish(id, author, new SubmitPublishRequest("TEAM", Set.of("t-search"), true, 1L)))
                 .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertThat(ex.getStatusCode()).isEqualTo(status));
             assertThat(repository.findById(id).orElseThrow().article().status()).isEqualTo(ArticleStatus.DRAFT);
         }
@@ -36,7 +36,7 @@ class ArticleOrgPublishTest {
     @Test void permissionDenialPrecedesOrganizationCallsAndWrites() {
         String id = draft();
         doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN)).when(permissions).requirePublishAllowed(any(), any(), any());
-        assertThatThrownBy(() -> service.submitForPublish(id, author, new SubmitPublishRequest("TEAM", Set.of("t-pay"), true)))
+        assertThatThrownBy(() -> service.submitForPublish(id, author, new SubmitPublishRequest("TEAM", Set.of("t-pay"), true, 1L)))
             .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
         assertThat(repository.findById(id).orElseThrow().article().status()).isEqualTo(ArticleStatus.DRAFT);
         verifyNoInteractions(organizations, tickets, outbox);
@@ -44,7 +44,7 @@ class ArticleOrgPublishTest {
 
     @Test void validScopedTargetStillUsesExistingReviewWorkflow() {
         String id = draft();
-        var result = service.submitForPublish(id, author, new SubmitPublishRequest("TEAM", Set.of("t-search"), true));
+        var result = service.submitForPublish(id, author, new SubmitPublishRequest("TEAM", Set.of("t-search"), true, 1L));
         assertThat(result.status()).isEqualTo("PENDING_REVIEW");
         var order = inOrder(permissions, organizations, tickets);
         order.verify(permissions).requirePublishAllowed(any(), any(), any());
@@ -55,11 +55,11 @@ class ArticleOrgPublishTest {
 
     @Test void malformedTargetsAndAnonymousRequestsAreRejectedBeforeStateChanges() {
         String id = draft();
-        for (var request : new SubmitPublishRequest[]{new SubmitPublishRequest(null, Set.of(), false), new SubmitPublishRequest("TEAM", Set.of(), true), new SubmitPublishRequest("COMPANY", Set.of("t-search"), false)}) {
+        for (var request : new SubmitPublishRequest[]{new SubmitPublishRequest(null, Set.of(), false, 1L), new SubmitPublishRequest("TEAM", Set.of(), true, 1L), new SubmitPublishRequest("COMPANY", Set.of("t-search"), false, 1L)}) {
             assertThatThrownBy(() -> service.submitForPublish(id, author, request)).isInstanceOfSatisfying(ResponseStatusException.class,
                     ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
         }
-        assertThatThrownBy(() -> service.submitForPublish(id, new CallerContext(null, Set.of(), Set.of(), Set.of()), new SubmitPublishRequest("COMPANY", Set.of(), false)))
+        assertThatThrownBy(() -> service.submitForPublish(id, new CallerContext(null, Set.of(), Set.of(), Set.of()), new SubmitPublishRequest("COMPANY", Set.of(), false, 1L)))
             .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
         verifyNoInteractions(permissions, organizations, tickets, outbox);
     }

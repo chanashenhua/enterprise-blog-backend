@@ -25,6 +25,11 @@ public class ArticleMemoryRepository implements ArticleRepository {
     }
 
     @Override
+    public boolean insertDraftIfAbsent(StoredArticle article) {
+        return articles.putIfAbsent(article.article().id(), article) == null;
+    }
+
+    @Override
     public Optional<StoredArticle> findById(String articleId) {
         return Optional.ofNullable(articles.get(articleId));
     }
@@ -101,5 +106,11 @@ public class ArticleMemoryRepository implements ArticleRepository {
     @Override
     public List<ArticleContentVersion> findContentVersions(String articleId) {
         return List.copyOf(versions.getOrDefault(articleId, new CopyOnWriteArrayList<>()));
+    }
+
+    @Override
+    public Optional<ArticleContentVersion> findLatestContentVersion(String articleId) {
+        List<ArticleContentVersion> articleVersions = findContentVersions(articleId);
+        return articleVersions.isEmpty() ? Optional.empty() : Optional.of(articleVersions.get(articleVersions.size() - 1));
     }
 }

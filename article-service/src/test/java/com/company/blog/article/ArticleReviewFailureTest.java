@@ -33,7 +33,7 @@ class ArticleReviewFailureTest {
                 Set.of("redis")
         )).id();
 
-        SubmitPublishRequest request = new SubmitPublishRequest("TEAM", Set.of("t-search"), false);
+        SubmitPublishRequest request = new SubmitPublishRequest("TEAM", Set.of("t-search"), false, 1L);
 
         assertThatThrownBy(() -> service.submitForPublish(articleId, new com.company.blog.article.api.CallerContext(
                 "u-author", Set.of("AUTHOR"), Set.of(), Set.of("t-search")

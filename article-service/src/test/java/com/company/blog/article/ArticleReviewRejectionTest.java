@@ -30,7 +30,7 @@ class ArticleReviewRejectionTest {
                 Set.of("redis")
         )).id();
         CallerContext author = new CallerContext("u-author", Set.of("AUTHOR"), Set.of(), Set.of("t-search"));
-        SubmitPublishRequest request = new SubmitPublishRequest("TEAM", Set.of("t-search"), false);
+        SubmitPublishRequest request = new SubmitPublishRequest("TEAM", Set.of("t-search"), false, 1L);
 
         service.submitForPublish(articleId, author, request);
         assertThat(service.get(articleId).status()).isEqualTo(ArticleStatus.PENDING_REVIEW.name());
@@ -41,7 +41,8 @@ class ArticleReviewRejectionTest {
 
         assertThat(service.get(articleId).status()).isEqualTo(ArticleStatus.DRAFT.name());
         assertThat(service.get(articleId).visibilityType()).isNull();
-        assertThat(service.submitForPublish(articleId, author, request).status())
+        assertThat(service.submitForPublish(articleId, author,
+                new SubmitPublishRequest("TEAM", Set.of("t-search"), false, service.get(articleId).revision())).status())
                 .isEqualTo(ArticleStatus.PENDING_REVIEW.name());
     }
 }

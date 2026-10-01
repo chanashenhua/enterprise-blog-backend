@@ -36,7 +36,7 @@ class ArticleReviewTicketRecoveryTest {
                 Set.of("redis")
         )).id();
         CallerContext author = new CallerContext("u-author", Set.of("AUTHOR"), Set.of(), Set.of("t-search"));
-        SubmitPublishRequest request = new SubmitPublishRequest("TEAM", Set.of("t-search"), false);
+        SubmitPublishRequest request = new SubmitPublishRequest("TEAM", Set.of("t-search"), false, 1L);
 
         assertThatThrownBy(() -> service.submitForPublish(articleId, author, request))
                 .isInstanceOf(RestClientException.class);

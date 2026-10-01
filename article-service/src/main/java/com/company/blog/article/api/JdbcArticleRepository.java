@@ -28,7 +28,7 @@ public class JdbcArticleRepository implements ArticleRepository {
     private static final String SELECT_ARTICLE = """
             select id, author_id, title, status, visibility_type, review_request_id,
                    approved_by_review_ticket_id, rejected_by_review_ticket_id,
-                   category_id, created_at, updated_at
+                   category_id, created_at, updated_at, revision
             from article
             where id = ?
             """;
@@ -47,7 +47,7 @@ public class JdbcArticleRepository implements ArticleRepository {
                         update article
                         set author_id = ?, title = ?, status = ?, visibility_type = ?,
                             review_request_id = ?, approved_by_review_ticket_id = ?,
-                            rejected_by_review_ticket_id = ?, category_id = ?, created_at = ?, updated_at = ?
+                            rejected_by_review_ticket_id = ?, category_id = ?, created_at = ?, updated_at = ?, revision = ?
                         where id = ?
                         """,
                 article.authorId(),
@@ -60,6 +60,7 @@ public class JdbcArticleRepository implements ArticleRepository {
                 storedArticle.categoryId(),
                 Timestamp.from(article.createdAt()),
                 Timestamp.from(article.updatedAt()),
+                storedArticle.revision(),
                 article.id()
         );
         if (updated == 0) {
@@ -68,8 +69,8 @@ public class JdbcArticleRepository implements ArticleRepository {
                             insert into article
                                 (id, author_id, title, status, visibility_type, review_request_id,
                                  approved_by_review_ticket_id, rejected_by_review_ticket_id,
-                                 category_id, created_at, updated_at)
-                            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 category_id, created_at, updated_at, revision)
+                            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """,
                     article.id(),
                     article.authorId(),
@@ -81,13 +82,30 @@ public class JdbcArticleRepository implements ArticleRepository {
                     article.rejectedByReviewTicketId(),
                     storedArticle.categoryId(),
                     Timestamp.from(article.createdAt()),
-                    Timestamp.from(article.updatedAt())
+                    Timestamp.from(article.updatedAt()),
+                    storedArticle.revision()
             );
         }
 
         saveContent(storedArticle);
         replaceVisibilityTargets(article);
         replaceTags(storedArticle);
+    }
+
+    @Override
+    public boolean insertDraftIfAbsent(StoredArticle storedArticle) {
+        Article article = storedArticle.article();
+        int inserted = jdbcTemplate.update("""
+                insert into article (id, author_id, title, status, category_id, created_at, updated_at, revision)
+                values (?, ?, ?, ?, ?, ?, ?, ?)
+                on conflict do nothing
+                """, article.id(), article.authorId(), article.title(), article.status().name(),
+                storedArticle.categoryId(), Timestamp.from(article.createdAt()),
+                Timestamp.from(article.updatedAt()), storedArticle.revision());
+        if (inserted == 0) return false;
+        saveContent(storedArticle);
+        replaceTags(storedArticle);
+        return true;
     }
 
     @Override
@@ -227,6 +245,21 @@ public class JdbcArticleRepository implements ArticleRepository {
         );
     }
 
+    @Override
+    public Optional<ArticleContentVersion> findLatestContentVersion(String articleId) {
+        return jdbcTemplate.query("""
+                select article_id, version_no, title, content_json, rendered_html,
+                       plain_text, tag_ids, category_id, created_by, created_at
+                from article_content_version where article_id = ? order by version_no desc limit 1
+                """, (resultSet, rowNumber) -> new ArticleContentVersion(
+                resultSet.getString("article_id"), resultSet.getInt("version_no"),
+                resultSet.getString("title"), resultSet.getString("content_json"),
+                resultSet.getString("rendered_html"), resultSet.getString("plain_text"),
+                commaSeparated(resultSet.getString("tag_ids")), resultSet.getString("category_id"),
+                resultSet.getString("created_by"), resultSet.getTimestamp("created_at").toInstant()
+        ), articleId).stream().findFirst();
+    }
+
     private Optional<StoredArticle> find(String articleId, boolean forUpdate) {
         String sql = forUpdate ? SELECT_ARTICLE + " for update" : SELECT_ARTICLE;
         List<ArticleRow> rows = jdbcTemplate.query(sql, this::mapArticleRow, articleId);
@@ -287,7 +320,8 @@ public class JdbcArticleRepository implements ArticleRepository {
                 content.contentJson(),
                 new ArticleContentProjection(content.renderedHtml(), content.plainText()),
                 tagIds,
-                row.categoryId()
+                row.categoryId(),
+                row.revision()
         ));
     }
 
@@ -366,7 +400,8 @@ public class JdbcArticleRepository implements ArticleRepository {
                 resultSet.getString("rejected_by_review_ticket_id"),
                 resultSet.getString("category_id"),
                 resultSet.getTimestamp("created_at").toInstant(),
-                resultSet.getTimestamp("updated_at").toInstant()
+                resultSet.getTimestamp("updated_at").toInstant(),
+                resultSet.getLong("revision")
         );
     }
 
@@ -403,7 +438,8 @@ public class JdbcArticleRepository implements ArticleRepository {
             String rejectedByReviewTicketId,
             String categoryId,
             java.time.Instant createdAt,
-            java.time.Instant updatedAt
+            java.time.Instant updatedAt,
+            long revision
     ) {
     }
 

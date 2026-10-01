@@ -46,7 +46,7 @@ class ArticleLifecycleTest {
         ArticleResponse updated = service.updateDraft(
                 articleId,
                 author,
-                new UpdateDraftRequest("第二版", content("第二版正文"), Set.of("postgresql"), "database")
+                new UpdateDraftRequest("第二版", content("第二版正文"), Set.of("postgresql"), "database", 1L, false)
         );
         assertThat(updated.title()).isEqualTo("第二版");
         assertThat(updated.plainText()).isEqualTo("第二版正文");
@@ -62,14 +62,14 @@ class ArticleLifecycleTest {
         service.submitForPublish(
                 articleId,
                 author,
-                new SubmitPublishRequest("COMPANY", Set.of(), false)
+                new SubmitPublishRequest("COMPANY", Set.of(), false, updated.revision())
         );
         assertThat(service.withdraw(articleId, author).status()).isEqualTo(ArticleStatus.WITHDRAWN.name());
 
         ArticleResponse editedAfterWithdraw = service.updateDraft(
                 articleId,
                 author,
-                new UpdateDraftRequest("第三版", content("第三版正文"), Set.of("java", "postgresql"))
+                new UpdateDraftRequest("第三版", content("第三版正文"), Set.of("java", "postgresql"), null, 4L, false)
         );
         assertThat(editedAfterWithdraw.status()).isEqualTo(ArticleStatus.DRAFT.name());
         assertThat(editedAfterWithdraw.visibilityType()).isNull();
@@ -77,7 +77,7 @@ class ArticleLifecycleTest {
         service.submitForPublish(
                 articleId,
                 author,
-                new SubmitPublishRequest("COMPANY", Set.of(), false)
+                new SubmitPublishRequest("COMPANY", Set.of(), false, editedAfterWithdraw.revision())
         );
         assertThat(service.delete(articleId, author).status()).isEqualTo(ArticleStatus.DELETED.name());
         assertThat(service.listMine(author)).isEmpty();
@@ -93,7 +93,7 @@ class ArticleLifecycleTest {
         service.submitForPublish(
                 articleId,
                 author,
-                new SubmitPublishRequest("TEAM", Set.of("t-search"), true)
+                new SubmitPublishRequest("TEAM", Set.of("t-search"), true, 1L)
         );
 
         assertThatThrownBy(() -> service.delete(articleId, author))
