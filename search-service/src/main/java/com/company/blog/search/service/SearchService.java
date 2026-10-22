@@ -27,8 +27,8 @@ public class SearchService {
         repository.index(document);
     }
 
-    public void delete(String articleId) {
-        repository.delete(articleId);
+    public void delete(String articleId, long revision) {
+        repository.delete(articleId, revision);
     }
 
     public SearchArticleResponse search(UserContext user, SearchArticleRequest request) {

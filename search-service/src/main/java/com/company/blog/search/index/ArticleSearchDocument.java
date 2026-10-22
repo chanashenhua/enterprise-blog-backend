@@ -17,7 +17,8 @@ public record ArticleSearchDocument(
         Set<String> targetOrgIds,
         String status,
         Instant publishedAt,
-        Instant updatedAt
+        Instant updatedAt,
+        long revision
 ) {
     public ArticleSearchDocument {
         tags = tags == null ? Set.of() : Set.copyOf(tags);
@@ -28,7 +29,7 @@ public record ArticleSearchDocument(
         return new ArticleSearchDocument(
                 request.articleId(), request.title(), request.summary(), request.plainText(), request.tags(),
                 request.categoryId(), request.authorId(), request.authorName(), request.visibilityType(), request.targetOrgIds(),
-                request.status(), request.publishedAt(), request.updatedAt()
+                request.status(), request.publishedAt(), request.updatedAt(), request.revision()
         );
     }
 
@@ -48,7 +49,7 @@ public record ArticleSearchDocument(
     ) {
         this(
                 articleId, title, summary, plainText, tags, null, authorId, authorName,
-                visibilityType, targetOrgIds, status, publishedAt, updatedAt
+                visibilityType, targetOrgIds, status, publishedAt, updatedAt, 1
         );
     }
 }

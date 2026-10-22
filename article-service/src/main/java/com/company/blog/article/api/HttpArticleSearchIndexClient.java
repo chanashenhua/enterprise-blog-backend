@@ -14,7 +14,10 @@ public class HttpArticleSearchIndexClient implements ArticleSearchIndexClient {
             @Value("${blog.services.search-service-url:http://search-service:8088}") String baseUrl,
             @Value("${blog.internal.search-token:local-search-token}") String token
     ) {
-        this.restClient = RestClient.builder().baseUrl(baseUrl).build();
+        var factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(3000);
+        factory.setReadTimeout(10000);
+        this.restClient = RestClient.builder().requestFactory(factory).baseUrl(baseUrl).build();
         this.token = token;
     }
 
@@ -30,9 +33,9 @@ public class HttpArticleSearchIndexClient implements ArticleSearchIndexClient {
     }
 
     @Override
-    public void delete(String articleId) {
+    public void delete(String articleId, long revision) {
         restClient.delete()
-                .uri("/internal/search/articles/{articleId}", articleId)
+                .uri("/internal/search/articles/{articleId}?revision={revision}", articleId, revision)
                 .header("X-Internal-Token", token)
                 .retrieve()
                 .toBodilessEntity();

@@ -36,10 +36,11 @@ public class SearchController {
             @RequestParam(value = "categoryId", required = false) String categoryId,
             @RequestParam(value = "tagId", required = false) String tagId,
             @RequestParam(value = "page", required = false) Integer page,
-            @RequestParam(value = "size", required = false) Integer size
+            @RequestParam(value = "size", required = false) Integer size,
+            @RequestParam(value = "sort", required = false) String sort
     ) {
         UserContext user = userContext(headers);
-        return searchService.search(user, new SearchArticleRequest(query, categoryId, tagId, page, size));
+        return searchService.search(user, new SearchArticleRequest(query, categoryId, tagId, page, size, sort));
     }
 
     private static UserContext userContext(HttpHeaders headers) {

@@ -17,7 +17,7 @@ blog:
 
 eureka:
   client:
-    enabled: false
+    enabled: true
 
 management:
   metrics:

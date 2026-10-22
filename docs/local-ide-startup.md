@@ -6,29 +6,46 @@
 
 1. 将 Project SDK、Project language level、所有模块 SDK 和 Maven Runner JRE 设置为 JDK 17。
 2. 从根目录 `pom.xml` 重新加载 Maven 项目，不要逐个导入子模块。
-3. Config Server 环境变量：
+3. 每个运行配置必须设置正确的 `SPRING_APPLICATION_NAME`，否则 Config Client 在首次导入时无法定位服务配置。Eureka 不依赖 Config Server，环境变量：
 
 ```text
-SPRING_PROFILES_ACTIVE=native
-SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS=file:///$PROJECT_DIR$/config-repo
-SERVER_PORT=8888
+SPRING_APPLICATION_NAME=eureka-server
+SERVER_PORT=8761
+SERVER_ADDRESS=127.0.0.1
+EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
+EUREKA_CLIENT_FETCH_REGISTRY=false
 ```
 
-4. Gateway 环境变量：
+4. Config Server 环境变量：
 
 ```text
-SPRING_PROFILES_ACTIVE=dev
+SPRING_APPLICATION_NAME=config-server
+SPRING_PROFILES_ACTIVE=native,local
+SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS=file:///$PROJECT_DIR$/config-repo
+SERVER_PORT=8888
+SERVER_ADDRESS=127.0.0.1
+EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://localhost:8761/eureka/
+EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+EUREKA_INSTANCE_IP_ADDRESS=127.0.0.1
+```
+
+5. Gateway 环境变量：
+
+```text
+SPRING_APPLICATION_NAME=gateway-service
+SPRING_PROFILES_ACTIVE=dev,local
 SPRING_CONFIG_IMPORT=configserver:http://localhost:8888
 SPRING_CLOUD_CONFIG_FAIL_FAST=true
-EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://localhost:8761/eureka/
 GATEWAY_DEV_MOCK_TOKEN=local-dev-token
 ```
 
-5. 需要数据库的业务服务使用 `SPRING_PROFILES_ACTIVE=local`，并设置：
+6. 业务服务（包括 Permission Service）使用 `SPRING_PROFILES_ACTIVE=local`，并设置：
 
 ```text
+SPRING_APPLICATION_NAME=<模块名，例如 article-service>
+SPRING_PROFILES_ACTIVE=local
 SPRING_CONFIG_IMPORT=configserver:http://localhost:8888
-EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://localhost:8761/eureka/
+SPRING_CLOUD_CONFIG_FAIL_FAST=true
 POSTGRES_PASSWORD=<你的本机 PostgreSQL 密码>
 ```
 
@@ -43,7 +60,33 @@ POSTGRES_PASSWORD=<你的本机 PostgreSQL 密码>
 5. `CommentServiceApplication`（8089）、`StatsServiceApplication`（8090）、`NotificationServiceApplication`（8091）、`AuditServiceApplication`（8092）
 6. `GatewayServiceApplication`（8080）
 
-访问 `http://localhost:8761` 确认服务已注册，再启动前端。搜索和文件功能分别依赖 Elasticsearch 与 MinIO，本地没有这些基础设施时可以暂不启动对应服务。
+访问 `http://localhost:8761` 确认服务已注册，再启动前端。`application-local.yml` 统一绑定并注册到 `127.0.0.1`，本地业务服务已启用 Eureka；服务启动后，注册表缓存和 Gateway 服务发现可能还需约 30 秒同步。
+
+搜索使用本机 Elasticsearch，详见 [D 盘安装与启停指南](local-elasticsearch.md)。先启动 ES，再使用 `start-local-services.ps1 -IncludeSearch` 启动 13 个后端服务；首次在管理端重新同步全部文章。IDEA 中搜索服务使用 `local` Profile，文章服务设置 `BLOG_OUTBOX_SEARCH_ENABLED=true`。
+
+不需要搜索时可以省略 `-IncludeSearch`：文章服务的 `local` 配置默认暂停搜索 Outbox，发布、撤回、删除事件仍持久化为 `PENDING`，但不消耗重试次数。其他 Profile 保持默认投递。文件功能仍需单独准备 MinIO。
+
+### PowerShell 启动方式
+
+也可使用 PowerShell 7.4 及以上运行仓库脚本。先按 [本机数据库准备](api/local-demo.md#不使用-docker-的本机-postgresql) 初始化数据库；已有单库必须单独执行缺失迁移，脚本不会初始化、重置或迁移数据库。
+
+```powershell
+$env:JAVA_HOME='D:\Java\jdk-17'  # 改成自己的 JDK 17 目录
+$env:POSTGRES_PASSWORD=Read-Host '本机 PostgreSQL 密码' -MaskInput
+.\mvnw.cmd -DskipTests install
+.\mvnw.cmd -pl eureka-server,config-server,gateway-service,org-service,permission-service,article-service,tag-service,review-service,comment-service,stats-service,notification-service,audit-service -DskipTests package spring-boot:repackage
+.\scripts\start-local-services.ps1
+Remove-Item Env:POSTGRES_PASSWORD
+```
+
+脚本依序启动 12 个后台 Java 进程，逐一检查健康状态，日志与不含凭据的 PID 清单写入 `target/local-services`。端口占用或服务不健康时停止继续启动，已启动服务保留用于排查；可用 `-Group foundation|business|gateway` 或 `-ServiceNames article-service` 指定部分服务。业务服务每个进程最多使用 256 MB Java 堆，机器仍需为 JVM 本身和 PostgreSQL 留出内存。
+
+停止脚本会核对启动时间和实际 JAR 路径，避免误停已复用的 PID。先查看目标，也可指定同一个日志目录或部分服务：
+
+```powershell
+.\scripts\stop-local-services.ps1 -WhatIf
+.\scripts\stop-local-services.ps1
+```
 
 ## 3. WebStorm 启动前端
 
@@ -106,7 +149,7 @@ IDEA 和 WebStorm 的个人运行配置可能包含本机密码，应保留在�
 
 使用 `u-author` 或 `u-admin` 进入「写文章」，测试标题、正文、对照预览、分类标签选择和保存后再次编辑。预览与保存依赖文章服务，分类标签依赖标签服务，并通过 Gateway 请求；只启动前端不能完成这些功能。
 
-有效草稿在停止输入 2 秒后自动保存；离开前检查保存状态，失败或冲突时先完成重试或处理。未保存内容可在当前标签页恢复，最长保留 24 小时，退出登录时清理。组织范围支持按名称搜索多选；保存草稿不会改变发布范围。文章服务需完成 V8 迁移，并与携带修订号的新员工端配套运行。详见 [文章编辑器接口](api/article-editor.md) 和 [第五阶段计划](phase-5-plan.md)。
+有效草稿在停止输入 2 秒后自动保存；离开前检查保存状态，失败或冲突时先完成重试或处理。未保存内容可在当前标签页恢复，最长保留 24 小时，退出登录时清理。组织范围支持按名称搜索多选；保存草稿不会改变发布范围。文章服务需完成 V8 迁移，并与携带修订号的新员工端配套运行。**本机单库的 `local` Profile 关闭了 Flyway，仅重启不会执行 V8**，升级步骤见 [已有单库升级 V8](api/local-demo.md#已有单库升级-v8)。详见 [文章编辑器接口](api/article-editor.md) 和 [第五阶段计划](phase-5-plan.md)。
 
 ## 7. 组织范围选择启动检查
 

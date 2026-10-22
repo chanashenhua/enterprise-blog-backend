@@ -31,21 +31,22 @@ public class InternalSearchController {
     }
 
     @PostMapping("/index")
-    /** 用文章发布事件中的快照建立或覆盖索引文档。 */
+    /** 用文章数据库当前修订建立或覆盖索引文档。 */
     public void index(@RequestHeader("X-Internal-Token") String token, @RequestBody IndexArticleRequest request) {
         requireToken(token);
         searchService.index(ArticleSearchDocument.from(request));
     }
 
     @DeleteMapping("/{articleId}")
-    /** 删除文章对应的搜索文档，供后续下线或删除流程调用。 */
-    public void delete(@RequestHeader("X-Internal-Token") String token, @PathVariable String articleId) {
+    /** 擦除文章内容并保留修订标记，阻止过期事件重新写入。 */
+    public void delete(@RequestHeader("X-Internal-Token") String token, @PathVariable("articleId") String articleId,
+            @org.springframework.web.bind.annotation.RequestParam("revision") long revision) {
         requireToken(token);
-        searchService.delete(articleId);
+        searchService.delete(articleId, revision);
     }
 
     private void requireToken(String token) {
-        if (!internalToken.equals(token)) {
+        if (internalToken.isBlank() || !internalToken.equals(token)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
         }
     }
