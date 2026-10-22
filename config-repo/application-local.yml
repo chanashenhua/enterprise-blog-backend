@@ -1,0 +1,11 @@
+# 本机联调统一使用回环地址，通过 Eureka 为 Gateway 提供服务发现。
+server:
+  address: 127.0.0.1
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+    ip-address: 127.0.0.1

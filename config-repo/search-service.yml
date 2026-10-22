@@ -9,7 +9,7 @@ blog:
   elasticsearch:
     base-url: http://elasticsearch:9200
   services:
-    permission-service-url: http://permission-service:8083
+    article-service-url: http://article-service:8084
   internal:
     search-token: ${INTERNAL_SEARCH_TOKEN:local-search-token}
 

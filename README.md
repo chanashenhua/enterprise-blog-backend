@@ -5,7 +5,7 @@
 ## 启动
 
 当前本机未安装 Docker 时，可按 [IDEA 与 WebStorm 本地启动指南](docs/local-ide-startup.md)
-连接本机 PostgreSQL 和 Redis 启动第四阶段所需服务。Docker Compose 方式保留如下：
+连接本机 PostgreSQL 和 Redis 启动服务。Elasticsearch 已支持 Windows 本机调试，安装、数据及下载目录均在 D 盘，见 [本地 Elasticsearch 指南](docs/local-elasticsearch.md) 和 [搜索接口](docs/api/search.md)。Docker Compose 方式保留如下：
 
 ```powershell
 Copy-Item .env.example .env

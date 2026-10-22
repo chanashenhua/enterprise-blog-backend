@@ -18,6 +18,8 @@
       "summary": { "type": "text" },
       "plain_text": { "type": "text" },
       "tags": { "type": "keyword" },
+      "category_id": { "type": "keyword" },
+      "revision": { "type": "long" },
       "author_id": { "type": "keyword" },
       "author_name": { "type": "keyword" },
       "visibility_type": { "type": "keyword" },

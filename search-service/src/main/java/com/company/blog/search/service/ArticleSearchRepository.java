@@ -8,7 +8,7 @@ import com.company.blog.search.index.ArticleSearchDocument;
 public interface ArticleSearchRepository {
     void index(ArticleSearchDocument document);
 
-    void delete(String articleId);
+    void delete(String articleId, long revision);
 
     SearchArticleResponse search(UserContext user, SearchArticleRequest request);
 }

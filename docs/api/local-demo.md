@@ -33,7 +33,7 @@ Get-Content infra/postgres/seed-demo-data.sql | docker compose exec -T postgres 
 ### 不使用 Docker 的本机 PostgreSQL
 
 本机单库调试使用 `jdbc:postgresql://localhost:5432/postgres`。密码只通过当前终端环境变量传入，
-不要写入 Git。文章服务的 `V3`～`V6`、标签服务的 `V3`、评论服务的 `V1`～`V3`、
+不要写入 Git。文章服务的 `V3`～`V8`、标签服务的 `V3`、评论服务的 `V1`～`V3`、
 统计服务、通知服务的 `V1`～`V2` 和审计服务的 `V1`，以及审核服务的 `V6`、标签服务的 `V4` 迁移只在数据库
 尚无对应结构时各执行一次；
 种子脚本可重复执行：
@@ -64,6 +64,8 @@ psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
   -f article-service/src/main/resources/db/migration/V6__article_subscription_notification_outbox.sql
 psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
   -f article-service/src/main/resources/db/migration/V7__knowledge_collections.sql
+psql -v ON_ERROR_STOP=1 --single-transaction -h localhost -p 5432 -U postgres -d postgres `
+  -f article-service/src/main/resources/db/migration/V8__article_draft_revision.sql
 psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
   -f audit-service/src/main/resources/db/migration/V1__audit_records.sql
 psql -v ON_ERROR_STOP=1 -h localhost -p 5432 -U postgres -d postgres `
@@ -78,6 +80,26 @@ Remove-Item Env:PGPASSWORD
 启动文章服务时使用 `local` Profile，并通过 `POSTGRES_PASSWORD` 提供密码。
 `config-repo/article-service-local.yml` 会连接本机单库并关闭 Flyway，因为多个服务共用
 `public` schema 时不能共用一张 `flyway_schema_history`。
+
+#### 已有单库升级 V8
+
+先停止旧文章服务。确认 `article` 尚无 `revision` 列，并备份后执行一次 V8；不要为了升级重新运行演示种子脚本。以下命令假定 PostgreSQL 的 `bin` 目录已加入 PATH，并已在当前终端设置 `POSTGRES_PASSWORD`：
+
+```powershell
+$env:PGPASSWORD=$env:POSTGRES_PASSWORD
+$backupDirectory=New-Item -ItemType Directory -Force 'target/local-backups'
+$backupFile=Join-Path $backupDirectory.FullName ("postgres-before-v8-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.dump')
+pg_dump -w -h localhost -p 5432 -U postgres -d postgres -Fc --no-owner -f $backupFile
+if ($LASTEXITCODE -ne 0) { throw '备份失败，停止迁移' }
+psql -X -w -v ON_ERROR_STOP=1 --single-transaction -h localhost -p 5432 -U postgres -d postgres `
+  -f article-service/src/main/resources/db/migration/V8__article_draft_revision.sql
+if ($LASTEXITCODE -ne 0) { throw '迁移失败，请查看错误信息' }
+psql -X -w -h localhost -p 5432 -U postgres -d postgres `
+  -c 'select count(*), min(revision), max(revision) from article;'
+Remove-Item Env:PGPASSWORD
+```
+
+已有文章的 `revision` 默认是 1，正文和历史快照保持不变。迁移成功后才启动新文章服务与配套员工端。独立数据库、启用 Flyway 的部署仍由 Flyway 正常执行 V8，不需要重复手动运行。
 
 本机种子脚本会建立四篇文章：
 
@@ -124,4 +146,6 @@ pnpm exec playwright install chromium
 pnpm test
 ```
 
-默认地址为员工端 `http://localhost:5173` 与管理端 `http://localhost:5174/admin/`。如需覆盖，设置 `E2E_PORTAL_URL` 和 `E2E_ADMIN_URL`。
+默认地址为员工端 `http://localhost:5173` 与管理端 `http://localhost:5174`。如需覆盖，设置 `E2E_PORTAL_URL` 和 `E2E_ADMIN_URL`。
+
+本机未启动 Elasticsearch 时，可在前端 `e2e` 目录单独运行 `npm run test:live:articles`，验证真实 PostgreSQL、自动保存、恢复、冲突、发布及审核。此套件默认使用 `127.0.0.1:8080/5173/5174`，不替换业务 API 响应；每项只创建带唯一 `LIVE-` 前缀的文章，结束后通过 API 软删除自己的记录，历史与审计仍按业务规则保留。不会重置演示数据。详见 [2026-10-01 联调记录](../local-integration-2026-10-01.md)。完整搜索联调另见 [Elasticsearch 本地指南](../local-elasticsearch.md)。

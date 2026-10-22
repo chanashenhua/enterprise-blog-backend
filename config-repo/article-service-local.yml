@@ -10,6 +10,10 @@ spring:
     enabled: false
 
 blog:
+  outbox:
+    search:
+      # 默认允许不启动搜索；-IncludeSearch 或环境变量可启用投递。关闭时保留事件。
+      enabled: false
   internal:
     org-token: ${INTERNAL_ORG_TOKEN:local-org-token}
   services:

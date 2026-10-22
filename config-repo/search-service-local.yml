@@ -1,0 +1,7 @@
+blog:
+  elasticsearch:
+    base-url: http://127.0.0.1:9200
+  services:
+    article-service-url: http://127.0.0.1:8084
+  internal:
+    search-token: ${INTERNAL_SEARCH_TOKEN:local-search-token}

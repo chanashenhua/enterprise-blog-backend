@@ -16,7 +16,8 @@ public record IndexArticleRequest(
         Set<String> targetOrgIds,
         String status,
         Instant publishedAt,
-        Instant updatedAt
+        Instant updatedAt,
+        long revision
 ) {
     public IndexArticleRequest {
         tags = tags == null ? Set.of() : Set.copyOf(tags);
